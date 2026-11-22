@@ -6,7 +6,7 @@ services:
     dockerContext: .
     plan: free
     region: oregon
-    healthCheckPath: /api/health
+    healthCheckPath: /api/ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -18,8 +18,6 @@ services:
         generateValue: true
       - key: CSRF_SECRET
         generateValue: true
-      - key: CLIENT_ORIGIN
-        sync: false
       - key: ADMIN_NAME
         value: Course Administrator
       - key: ADMIN_EMAIL

@@ -58,11 +58,10 @@ export function csrfProtection(req, res, next) {
       const currentHost = `${req.protocol}://${req.get('host')}`;
       const allowedOrigins = [
         currentHost,
-        env.CLIENT_ORIGIN,
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'http://localhost:5000',
-        'http://127.0.0.1:5000',
+        ...(env.CLIENT_ORIGIN ? [env.CLIENT_ORIGIN] : []),
+        ...(env.NODE_ENV !== 'production'
+          ? ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5000', 'http://127.0.0.1:5000']
+          : []),
       ];
 
       const isAllowed = allowedOrigins.some((allowed) => {

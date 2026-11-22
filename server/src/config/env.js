@@ -9,10 +9,12 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+const isProduction = (process.env.NODE_ENV || 'development') === 'production';
+
 export const env = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: parseInt(process.env.PORT, 10) || 5000,
-  CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || (isProduction ? undefined : 'http://localhost:5173'),
   DB: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT, 10) || 5432,

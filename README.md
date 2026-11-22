@@ -376,7 +376,7 @@ Once the service is active on Render:
 | `DATABASE_URL` | **Yes** | `postgres://user:pass@host:5432/db` | PostgreSQL connection string. Enables TLS verification when host contains `neon.tech` or `sslmode=require`. |
 | `JWT_SECRET` | **Yes** | 64+ char random hex string | Secret key used to sign and verify user authentication JWTs. |
 | `CSRF_SECRET` | **Yes** | 64+ char random hex string | Secret key used to cryptographically bind CSRF tokens. |
-| `CLIENT_ORIGIN` | Optional | `http://localhost:5173` | Allowed external CORS / CSRF origin (in addition to the server's own origin). |
+| `CLIENT_ORIGIN` | Optional | `http://localhost:5173` (dev only) | Allowed external CORS / CSRF origin. Not required in production single-origin deployments. |
 | `ADMIN_NAME` | Optional | `Course Administrator` | Full name assigned during admin account provisioning. |
 | `ADMIN_EMAIL` | **Yes** (Seed) | `admin@joineazy.edu` | Email address for the provisioned admin account (alias: `ADMIN_SEED_EMAIL`). |
 | `ADMIN_PASSWORD` | **Yes** (Prod) | (Min 12 characters) | Secure password for admin account seeding (alias: `ADMIN_SEED_PASSWORD`). Default passwords rejected in production. |

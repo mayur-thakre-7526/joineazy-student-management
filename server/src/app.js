@@ -27,10 +27,10 @@ export function createApp() {
     })
   );
 
-  // CORS configuration (allow credentials for HTTP-only cookies)
+  // CORS configuration (allow credentials for HTTP-only cookies; default to true for same-origin)
   app.use(
     cors({
-      origin: env.CLIENT_ORIGIN,
+      origin: env.CLIENT_ORIGIN || true,
       credentials: true,
     })
   );
