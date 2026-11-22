@@ -19,7 +19,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="min-h-screen bg-slate-50 flex flex-col justify-between text-slate-900 antialiased">
+        <div className="min-h-screen bg-slate-50 flex flex-col justify-between text-slate-900 antialiased overflow-x-hidden">
           <div>
             <Navbar />
             <main>
@@ -104,8 +104,15 @@ function App() {
               </Routes>
             </main>
           </div>
-          <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-12">
-            <p>Joineazy &copy; {new Date().getFullYear()} — Student, Group & Assignment Management Platform</p>
+          <footer className="bg-white border-t border-slate-200 py-8 px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500 mt-16 space-y-2">
+            <div className="flex items-center justify-center space-x-4 text-xs font-medium text-slate-600">
+              <span>Academic Integrity</span>
+              <span>•</span>
+              <span>Group Collaboration</span>
+              <span>•</span>
+              <span>Audited Declarations</span>
+            </div>
+            <p className="text-slate-400">Joineazy &copy; {new Date().getFullYear()} — Student, Group & Assignment Management Platform</p>
           </footer>
         </div>
       </AuthProvider>
