@@ -1,6 +1,6 @@
 # Joineazy - Student, Group & Assignment Management System
 
-A role-based web application tailored for higher education academic workflows. Enables students to form groups, receive assignments, access external OneDrive submission portals, confirm submissions through a secure two-step verification workflow, and track collaborative progress. Enables professors (admins) to create targeted assignments, oversee group/student progress, and inspect submission analytics.
+A production-quality, role-based academic platform designed for Students and Professors (Admins). Enables students to form groups, receive assignments, access external OneDrive submission portals, confirm submissions through a two-step verification workflow, and track collaborative progress. Enables professors (admins) to create targeted assignments, oversee group/student progress, and inspect submission analytics.
 
 ---
 
@@ -8,11 +8,12 @@ A role-based web application tailored for higher education academic workflows. E
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 18, Vite, Tailwind CSS, Lucide Icons |
-| **Backend** | Node.js (ES Modules), Express.js |
-| **Database** | PostgreSQL 16 |
-| **Containerization** | Docker, Docker Compose |
-| **Security & Utilities** | Helmet, CORS, Dotenv, PG Connection Pool |
+| **Frontend** | React 18, React Router 6, Vite, Tailwind CSS, Lucide Icons |
+| **Backend** | Node.js (ES Modules), Express.js, Zod, Bcrypt.js, JsonWebToken |
+| **Database** | PostgreSQL 16 (Relational Schema & Versioned SQL Migrations) |
+| **Authentication & Security** | JWT with HTTP-only Cookies, Strict CSRF Token & Origin Validation, In-Memory Rate Limiting, Role-Based Access Control (`STUDENT`, `ADMIN`) |
+| **Containerization & Deployment**| Multi-stage Docker, Docker Compose, Render Blueprint (`render.yaml`), Neon PostgreSQL (SSL) |
+| **Security & Utilities** | Helmet, CORS, Cookie-Parser, Dotenv, PG Connection Pool, Express Trust Proxy |
 
 ---
 
@@ -20,14 +21,16 @@ A role-based web application tailored for higher education academic workflows. E
 
 ```
 joineazy-student-management/
-├── .env.example             # Template for root/shared environment variables
+├── .env.example             # Template for shared environment variables
 ├── .gitignore               # Multi-layer git ignore rules
-├── docker-compose.yml       # Multi-container orchestration (DB, API, Client)
-├── README.md                # Project documentation and quick start
+├── docker-compose.yml       # Local multi-container orchestration (DB, API, Client)
+├── Dockerfile               # Production multi-stage Dockerfile (Vite build + Express static runner)
+├── render.yaml              # Render blueprint for unified Web Service deployment
+├── README.md                # Project documentation, ER diagrams, and deployment guide
 ├── client/                  # Frontend Vite + React application
 │   ├── .dockerignore
 │   ├── .env.example
-│   ├── Dockerfile           # Multi-stage production build (Node + Nginx)
+│   ├── Dockerfile           # Standalone client container (Node + Nginx)
 │   ├── index.html
 │   ├── nginx.conf           # Production Nginx reverse-proxy & routing config
 │   ├── package.json
@@ -38,115 +41,433 @@ joineazy-student-management/
 │       ├── App.jsx
 │       ├── index.css
 │       ├── main.jsx
+│       ├── components/
+│       │   ├── common/
+│       │   │   ├── Navbar.jsx
+│       │   │   └── ProtectedRoute.jsx
+│       │   └── groups/
+│       │       ├── GroupMembersList.jsx
+│       │       └── InviteMemberForm.jsx
+│       ├── context/
+│       │   └── AuthContext.jsx
 │       ├── pages/
-│       │   └── HomePage.jsx
+│       │   ├── AdminDashboardPage.jsx     # Professor coursewide analytics & submissions drilldown
+│       │   ├── CreateGroupPage.jsx
+│       │   ├── DashboardIndexPage.jsx     # Role-aware dashboard dispatcher
+│       │   ├── HomePage.jsx
+│       │   ├── LoginPage.jsx
+│       │   ├── MyGroupPage.jsx
+│       │   ├── MyInvitationsPage.jsx
+│       │   ├── RegisterPage.jsx
+│       │   ├── StudentDashboardPage.jsx   # Student coursework progress & group completion cards
+│       │   └── assignments/
+│       │       ├── AdminAssignmentsPage.jsx   # Professor assignment dashboard
+│       │       ├── AssignmentDetailsPage.jsx  # Detail view with two-step modal confirmation & OneDrive link
+│       │       ├── AssignmentsIndexPage.jsx   # Role-aware route dispatcher
+│       │       ├── CreateAssignmentPage.jsx   # Assignment creation form with multi-group targeting
+│       │       ├── EditAssignmentPage.jsx     # Assignment editor with atomic retargeting
+│       │       └── StudentAssignmentsPage.jsx # Student assignment dashboard with deadline tracking
 │       └── services/
 │           └── api.js
 └── server/                  # Backend Node.js + Express API
     ├── .dockerignore
     ├── .env.example
-    ├── Dockerfile           # Production container (Alpine + non-root user)
+    ├── Dockerfile           # Standalone backend container (Alpine + non-root user)
     ├── package.json
     └── src/
-        ├── app.js           # Express application configuration
-        ├── index.js         # Server entrypoint & graceful shutdown
+        ├── app.js           # Express application configuration (static serving + SPA fallback)
+        ├── index.js         # Server entrypoint & graceful shutdown (0.0.0.0 binding)
         ├── config/
-        │   ├── db.js        # PostgreSQL pool & connection diagnostics
+        │   ├── db.js        # PostgreSQL pool & connection diagnostics (with SSL support)
         │   └── env.js       # Environment validation and defaults
         ├── controllers/
-        │   └── healthController.js
+        │   ├── adminController.js
+        │   ├── analyticsController.js  # Course analytics and assignment submission tracking
+        │   ├── assignmentController.js # Assignment CRUD and student visibility enforcement
+        │   ├── authController.js
+        │   ├── groupController.js
+        │   ├── healthController.js
+        │   ├── invitationController.js
+        │   ├── readyController.js
+        │   └── submissionController.js # Student two-step confirmation & progress endpoints
+        ├── database/
+        │   ├── migrate.js   # Transactional migration runner
+        │   └── migrations/
+        │       └── 001_initial_schema.sql
         ├── middleware/
+        │   ├── authMiddleware.js       # JWT authentication & RBAC guards
+        │   ├── csrfMiddleware.js       # CSRF token generation & dynamic origin validation
         │   ├── errorHandler.js
+        │   ├── rateLimiter.js          # In-memory IP rate limiter for login
         │   └── requestLogger.js
+        ├── models/
+        │   ├── assignmentModel.js      # Assignment transactions, locks, and visibility queries
+        │   ├── groupModel.js           # Group, membership, and invitation queries
+        │   ├── submissionModel.js      # Relational submission confirmations & analytical aggregations
+        │   └── userModel.js            # User authentication & RBAC queries
         ├── routes/
+        │   ├── adminRoutes.js          # Admin role routes, analytics & submission tracking
+        │   ├── assignmentRoutes.js     # Protected assignment routes & confirmation endpoints
+        │   ├── authRoutes.js           # Auth routes with rate-limited login
+        │   ├── groupRoutes.js
         │   ├── healthRoutes.js
-        │   └── index.js
-        └── utils/
-            └── logger.js
+        │   ├── index.js
+        │   ├── invitationRoutes.js
+        │   ├── readyRoutes.js
+        │   └── studentRoutes.js        # Student coursework progress routes
+        ├── scripts/
+        │   ├── seedAdmin.js            # Idempotent admin account provisioning (production-hardened)
+        │   ├── verifyPhase2.js         # Phase 2 test suite (15 scenarios)
+        │   ├── verifyPhase3.js         # Phase 3 integration test suite (25 scenarios)
+        │   ├── verifyPhase4.js         # Phase 4 integration test suite (34 scenarios)
+        │   ├── verifyPhase5.js         # Phase 5 integration test suite (40 scenarios)
+        │   └── verifyE2EFlow.js        # Phase 6A End-to-End workflow test suite (20 scenarios)
+        ├── utils/
+        │   ├── logger.js
+        │   └── token.js
+        └── validators/
+            ├── assignmentValidators.js # Zod schemas for assignments and OneDrive link validation
+            ├── authValidators.js       # Zod schemas for register and login
+            └── groupValidators.js      # Zod schemas for groups and invitations
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## 🗄️ Relational Database Architecture
 
-### Prerequisites
-- **Node.js**: v18+ (tested on Node v24.x)
-- **npm**: v9+
-- *(Optional)* **Docker & Docker Compose**: For containerized deployment
+The application uses PostgreSQL 16 with relational integrity, foreign keys, cascade rules, and partial indexes. All migrations are tracked and transactional.
+
+```mermaid
+erDiagram
+    users ||--o{ groups : "creates"
+    users ||--o{ group_members : "belongs to"
+    users ||--o{ group_invitations : "invites / invited"
+    users ||--o{ assignments : "creates (professor_id)"
+    users ||--o{ submission_confirmations : "confirms"
+
+    groups ||--o{ group_members : "has members"
+    groups ||--o{ group_invitations : "issues invites"
+    groups ||--o{ assignment_groups : "targeted by"
+
+    assignments ||--o{ assignment_groups : "targets"
+    assignments ||--o{ submission_confirmations : "receives"
+
+    users {
+        uuid id PK
+        varchar full_name
+        varchar email UK "idx_users_email_lower"
+        varchar password_hash
+        varchar role "STUDENT | ADMIN"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    groups {
+        uuid id PK
+        varchar name
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    group_members {
+        uuid id PK
+        uuid group_id FK
+        uuid student_id FK "UK (uq_student_active_group)"
+        timestamptz joined_at
+    }
+
+    group_invitations {
+        uuid id PK
+        uuid group_id FK
+        uuid invited_student_id FK
+        uuid invited_by FK
+        varchar status "PENDING | ACCEPTED | REJECTED"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    assignments {
+        uuid id PK
+        uuid professor_id FK
+        varchar title
+        text description
+        timestamptz due_date
+        varchar scope "ALL | SPECIFIC_GROUPS"
+        text onedrive_link
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    assignment_groups {
+        uuid id PK
+        uuid assignment_id FK
+        uuid group_id FK
+    }
+
+    submission_confirmations {
+        uuid id PK
+        uuid assignment_id FK
+        uuid student_id FK
+        timestamptz confirmed_at
+    }
+```
+
+### Database Integrity Rules
+1. **Single Group Membership**: `group_members` enforces `CONSTRAINT uq_student_active_group UNIQUE (student_id)`. A student cannot belong to multiple groups simultaneously.
+2. **Duplicate Pending Invitation Guard**: `group_invitations` has a partial unique index `idx_pending_invitation UNIQUE (group_id, invited_student_id) WHERE status = 'PENDING'`.
+3. **Idempotent Submission Declaration**: `submission_confirmations` enforces `CONSTRAINT uq_submission_confirmation UNIQUE (assignment_id, student_id)`. Duplicate confirmation attempts return `HTTP 409 Conflict` (or are safely ignored via `ON CONFLICT DO NOTHING`).
+4. **Targeted Assignment Join Table**: `assignment_groups` enforces `CONSTRAINT uq_assignment_group UNIQUE (assignment_id, group_id)`. Scope transitions atomically clear or recreate joins within a single transaction.
 
 ---
 
-### Option A: Local Development (Without Docker)
+## 👥 Phase 3: Group Formation & Membership Management
 
-#### 1. Setup Backend
+### Architecture & Constraints
+1. **Atomic Group Creation**: `POST /api/groups` runs within a PostgreSQL transaction (`BEGIN ... COMMIT`). It creates the group and adds the creator to `group_members` atomically.
+2. **In-App Invitation Lifecycle**:
+   - Status transitions: `PENDING` $\to$ `ACCEPTED` or `REJECTED`.
+   - Only the group creator can issue invitations.
+   - Only the target student can accept or reject an invitation.
+   - Row-level locking (`FOR UPDATE`) on acceptance prevents concurrent race conditions.
+   - Accepting an invitation automatically cancels all other pending invitations for that student.
+3. **Private Roster Protection**: `GET /api/groups/:id` restricts roster viewing to active group members or administrators (`HTTP 403 Forbidden` for outsiders).
+
+---
+
+## 📚 Phase 4: Professor Assignment Management & Distribution
+
+### Architecture & Constraints
+1. **Assignment Scopes**:
+   - **`ALL`**: Accessible to all students across the course.
+   - **`SPECIFIC_GROUPS`**: Targeted strictly to selected student groups via `assignment_groups`.
+2. **Relational Visibility Filtering**:
+   - Student queries (`GET /api/assignments` and `GET /api/assignments/:id`) enforce database-level authorization:
+     ```sql
+     SELECT DISTINCT a.*
+     FROM assignments a
+     LEFT JOIN assignment_groups ag ON a.id = ag.assignment_id
+     LEFT JOIN group_members gm ON ag.group_id = gm.group_id AND gm.student_id = $1
+     WHERE a.scope = 'ALL' OR gm.student_id IS NOT NULL
+     ORDER BY a.due_date ASC;
+     ```
+   - Students outside the assigned groups cannot view targeted assignments or details (`HTTP 403 Forbidden`).
+3. **Atomic Modification Transactions**:
+   - Creating or updating assignments with `SPECIFIC_GROUPS` validates all target group IDs in a single atomic transaction with `FOR UPDATE` locking.
+4. **Secure External OneDrive Portal Integration**:
+   - OneDrive URLs are validated via Zod against HTTPS schemes and Microsoft domains.
+   - External links render with `target="_blank" rel="noopener noreferrer"` to prevent reverse-tabnabbing vulnerabilities.
+   - Files are not hosted or received on Joineazy servers; submission declaration is self-reported.
+
+---
+
+## 📊 Phase 5: Two-Step Submission Confirmation & Professor Analytics
+
+### Architecture & Business Rules
+1. **Self-Reported Submission Declaration**: Students submit externally to the professor's OneDrive portal, then confirm their submission within Joineazy.
+2. **Two-Step Confirmation Workflow**:
+   - Step 1: Student clicks *"Yes, I have submitted"* on the assignment detail view.
+   - Step 2: Confirmation modal prompts the student to acknowledge the declaration.
+   - On confirmation, `POST /api/assignments/:id/confirm` records the declaration with server-generated `CURRENT_TIMESTAMP`.
+3. **Deadline & Late Classification**:
+   - $\text{is\_late} = (\text{confirmed\_at} > \text{due\_date})$
+   - Late confirmations are allowed but visually flagged (`CONFIRMED_LATE` vs `CONFIRMED_ON_TIME`).
+4. **Group Progress Calculation**:
+   $$\text{Progress \%} = \left(\frac{\text{Confirmed Eligible Group Members}}{\text{Total Eligible Group Members}}\right) \times 100$$
+   - $0\% = \text{NOT\_STARTED}$
+   - $1\%\text{--}99\% = \text{IN\_PROGRESS}$
+   - $100\% = \text{COMPLETED}$
+5. **Professor Course Analytics & Submissions Tracking**:
+   - `GET /api/admin/analytics`: Aggregates coursewide metrics (assignments, students, groups, eligible pairs, completion rate).
+   - `GET /api/admin/assignments/:id/submissions`: Group-wise and student-wise tracking rosters with search, status filtering, and progress metrics.
+
+---
+
+## 🛡️ Security Architecture & Controls (Phase 6A)
+
+1. **Authentication Mode**:
+   - JWT tokens stored in an `httpOnly`, `sameSite: 'lax'`, `secure: production` cookie named `token`.
+   - Never stored in browser `localStorage` or `sessionStorage`, mitigating XSS credential theft.
+2. **CSRF Protection**:
+   - State-changing HTTP methods (`POST`, `PUT`, `DELETE`, `PATCH`) require both an allowed `Origin`/`Referer` header and a valid `X-CSRF-Token` header.
+   - Supports both cross-origin setups (`CLIENT_ORIGIN`) and single-origin production deployments (`${req.protocol}://${req.get('host')}`).
+3. **Rate Limiting**:
+   - `POST /api/auth/login` is protected by an in-memory IP rate limiter (25 attempts per 5 minutes per IP).
+   - Exceeded attempts return `HTTP 429 Too Many Requests` with a `Retry-After` header. Bypassed automatically during automated test suites.
+4. **Admin Credential Hardening**:
+   - Plaintext passwords scrubbed from `.env.example` templates.
+   - Production seeding script (`seedAdmin.js`) explicitly rejects well-known default passwords (`AdminInitialPassword123!`, `AdminPass123!`).
+   - Manual password rotation is mandatory for any deployment where initial credentials were shared.
+5. **SQL Injection Defense**:
+   - 100% of SQL queries utilize parameterized placeholders (`$1, $2, ...`). Zero string interpolation.
+6. **Single-Origin Routing Protection**:
+   - `app.all('/api/*', ...)` strictly returns JSON 404 responses, preventing the SPA fallback from accidentally returning HTML to broken API requests.
+
+---
+
+## 🚀 Production Deployment Guide (Render + Neon)
+
+This application is architected for single-origin production deployment on **Render** (as a Web Service running Docker) connected to **Neon** (serverless PostgreSQL with SSL).
+
+### Step 1: Provision Neon PostgreSQL
+1. Sign up / log in to [Neon Console](https://console.neon.tech/).
+2. Create a new project (e.g. `joineazy-db`) running PostgreSQL 16.
+3. In the Neon Dashboard, copy the pooled connection string. It will look like:
+   ```text
+   postgres://username:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+4. Confirm `sslmode=require` is present in the query string. The application automatically enforces TLS with strict server certificate verification (`rejectUnauthorized: true`).
+
+### Step 2: Run Database Migrations & Seed Admin (Pre-Deployment)
+> [!NOTE]
+> Render Free Web Services do not support Dashboard Shell / SSH access, and `preDeployCommand` is unavailable on the Free plan. Database migrations and initial admin account provisioning must be executed locally against the Neon database before launching the service on Render.
+
+Run the migration and admin seed scripts from your local workstation targeted to the Neon database:
 ```bash
-cd server
-cp .env.example .env
-npm install
-npm run dev
-```
-The server will start on `http://localhost:5000`. Test the health status:
-```bash
-curl http://localhost:5000/api/health
+# PowerShell (Windows)
+$env:DATABASE_URL="postgres://username:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require"
+$env:ADMIN_EMAIL="admin@joineazy.edu"
+$env:ADMIN_PASSWORD="YourStrongAdminPassword123!"
+$env:ADMIN_NAME="Course Administrator"
+node server/src/database/migrate.js
+node server/src/scripts/seedAdmin.js
+
+# Bash / POSIX
+DATABASE_URL="postgres://username:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require" \
+ADMIN_EMAIL="admin@joineazy.edu" \
+ADMIN_PASSWORD="YourStrongAdminPassword123!" \
+ADMIN_NAME="Course Administrator" \
+node server/src/database/migrate.js
+
+DATABASE_URL="postgres://username:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require" \
+ADMIN_EMAIL="admin@joineazy.edu" \
+ADMIN_PASSWORD="YourStrongAdminPassword123!" \
+ADMIN_NAME="Course Administrator" \
+node server/src/scripts/seedAdmin.js
 ```
 
-#### 2. Setup Frontend
-In a new terminal window:
-```bash
-cd client
-cp .env.example .env
-npm install
-npm run dev
-```
-The client will start on `http://localhost:5173`.
+### Step 3: Deploy to Render via Blueprint (`render.yaml`)
+1. Push your repository to GitHub or GitLab.
+2. In the [Render Dashboard](https://dashboard.render.com/), click **New +** $\to$ **Blueprint**.
+3. Select your repository. Render will automatically parse `render.yaml`.
+4. Fill in the required private environment variables:
+   - `DATABASE_URL`: Paste your Neon connection string.
+   - `ADMIN_EMAIL`: Set your designated administrator email.
+   - `ADMIN_PASSWORD`: Enter your strong password (minimum 12 characters, non-default).
+   - `JWT_SECRET`: Auto-generated by Render.
+   - `CSRF_SECRET`: Auto-generated by Render.
+5. Click **Apply**. Render will build the multi-stage `Dockerfile` and start the container on `PORT 5000`.
+
+### Step 4: Verify Deployment (Smoke Tests)
+Once the service is active on Render:
+1. Health check: `https://<your-render-app>.onrender.com/api/health` $\to$ Returns HTTP 200 with pool stats.
+2. Readiness probe: `https://<your-render-app>.onrender.com/api/ready` $\to$ Returns HTTP 200 with database connectivity.
+3. Web application: Open `https://<your-render-app>.onrender.com/` in your browser.
+4. Log in using the provisioned administrator credentials and verify all dashboards load without errors.
 
 ---
 
-### Option B: Docker Compose Deployment
+## ⚙️ Environment Variables Reference
 
-When Docker and Docker Compose are installed on the target machine:
+| Variable | Required | Default / Example | Purpose |
+|---|---|---|---|
+| `NODE_ENV` | Optional | `development` / `production` | Enables production security flags (secure cookies, rate limiting, strict admin password). |
+| `PORT` | Optional | `5000` | Port on which the Express server listens. |
+| `DATABASE_URL` | **Yes** | `postgres://user:pass@host:5432/db` | PostgreSQL connection string. Enables TLS verification when host contains `neon.tech` or `sslmode=require`. |
+| `JWT_SECRET` | **Yes** | 64+ char random hex string | Secret key used to sign and verify user authentication JWTs. |
+| `CSRF_SECRET` | **Yes** | 64+ char random hex string | Secret key used to cryptographically bind CSRF tokens. |
+| `CLIENT_ORIGIN` | Optional | `http://localhost:5173` | Allowed external CORS / CSRF origin (in addition to the server's own origin). |
+| `ADMIN_NAME` | Optional | `Course Administrator` | Full name assigned during admin account provisioning. |
+| `ADMIN_EMAIL` | **Yes** (Seed) | `admin@joineazy.edu` | Email address for the provisioned admin account (alias: `ADMIN_SEED_EMAIL`). |
+| `ADMIN_PASSWORD` | **Yes** (Prod) | (Min 12 characters) | Secure password for admin account seeding (alias: `ADMIN_SEED_PASSWORD`). Default passwords rejected in production. |
+
+---
+
+## 📡 API Endpoints Reference
+
+### Diagnostics & Auth
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/health` | Public | Process health and database pool state. |
+| `GET` | `/api/ready` | Public | Returns `200 OK` when DB is connected, `503` when unreachable. |
+| `GET` | `/api/auth/csrf-token` | Public | Generates and returns CSRF token. |
+| `POST` | `/api/auth/register` | Public | Registers a new student account (`STUDENT` role enforced). |
+| `POST` | `/api/auth/login` | Public (Rate-limited)| Authenticates user and issues HTTP-only cookie (max 25 attempts / 5 min). |
+| `GET` | `/api/auth/me` | Authenticated | Fetches profile of currently logged-in user. |
+| `POST` | `/api/auth/logout` | Authenticated | Clears authentication and CSRF cookies. |
+
+### Groups & Invitations (Phase 3)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/groups` | Student | Creates group and assigns creator as leader atomically. |
+| `GET` | `/api/groups/my` | Student | Retrieves student's current active group, roster, and pending invites (creator only). |
+| `GET` | `/api/groups/:id` | Member/Admin | Retrieves private group details and member roster. |
+| `POST` | `/api/groups/:id/invitations` | Group Creator | Invites peer student by email or student ID. |
+| `GET` | `/api/groups/:id/invitations` | Group Creator | Retrieves list of all invitations sent by this group. |
+| `GET` | `/api/invitations/my-pending` | Student | Retrieves pending invitations addressed to current student. |
+| `POST` | `/api/invitations/:id/respond` | Recipient | Accepts (`ACCEPT`) or rejects (`REJECT`) a pending invitation. |
+
+### Assignments (Phase 4)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/admin/groups` | Admin | Retrieves all active groups for assignment targeting dropdowns. |
+| `POST` | `/api/assignments` | Admin | Creates a coursewide (`ALL`) or targeted (`SPECIFIC_GROUPS`) assignment. |
+| `GET` | `/api/assignments` | Authenticated | Lists all assignments for Admin, or visible assignments for Student. |
+| `GET` | `/api/assignments/:id` | Authenticated | Fetches details for Admin or eligible assigned Student (includes submission status). |
+| `PUT` | `/api/assignments/:id` | Admin | Atomically updates assignment details, deadlines, and target groups. |
+
+### Submissions & Analytics (Phase 5)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/assignments/:id/confirm` | Student | Records two-step submission confirmation declaration (201 on success, 409 if already confirmed). |
+| `GET` | `/api/assignments/:id/submission` | Student | Retrieves student's personal submission status (`confirmed`, `confirmed_at`, `is_late`). |
+| `GET` | `/api/student/progress` | Student | Retrieves student's coursework summary and group-level progress across applicable assignments. |
+| `GET` | `/api/admin/analytics` | Admin | Retrieves coursewide analytics overview and per-assignment completion metrics. |
+| `GET` | `/api/admin/assignments/:id/submissions` | Admin | Retrieves group-wise and student-wise submission tracking breakdown for an assignment. |
+
+---
+
+## 🧪 Automated Testing & Verification
+
+The project includes 134 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
+
 ```bash
-# 1. Copy root environment variables
-cp .env.example .env
+# Run Phase 2 Regression Tests (15 test scenarios)
+npm --prefix server run test:phase2
 
-# 2. Build and launch all services (PostgreSQL, Backend API, Frontend Nginx)
-docker compose up --build -d
+# Run Phase 3 Regression Tests (25 test scenarios)
+npm --prefix server run test:phase3
 
-# 3. View running services
-docker compose ps
+# Run Phase 4 Regression Tests (34 test scenarios)
+npm --prefix server run test:phase4
 
-# 4. View logs
-docker compose logs -f
+# Run Phase 5 Integration Test Suite (40 test scenarios)
+npm --prefix server run test:phase5
+
+# Run Phase 6A End-to-End Workflow Test Suite (20 test scenarios)
+npm --prefix server run test:e2e
+
+# Compile Frontend Production Build
+npm --prefix client run build
 ```
+
+### Test Suite Summary
+| Suite | Scenarios | Focus Area | Status |
+|---|---|---|---|
+| `test:phase2` | 15 | Migrations, Registration, Login, JWT Cookies, Password Hashing, RBAC | **15/15 PASS** |
+| `test:phase3` | 25 | Group Creation, Unique Active Group, Invitations, Accept/Reject, Roster Privacy | **25/25 PASS** |
+| `test:phase4` | 34 | Assignments CRUD, Scope Targeting (`ALL` vs `SPECIFIC_GROUPS`), Visibility Guards, OneDrive URL Validation | **34/34 PASS** |
+| `test:phase5` | 40 | Two-Step Confirmation, Late Flagging, Idempotency, Group Progress Math, Professor Analytics | **40/40 PASS** |
+| `test:e2e` | 20 | Complete 20-step lifecycle across Student 1, Student 2, and Professor roles | **20/20 PASS** |
+| **Total** | **134** | **Complete Full-Stack Application Verification** | **134/134 PASS** |
 
 ---
 
-## 📡 API Endpoints (Phase 1)
+## 🗺️ Project Implementation History
 
-### `GET /api/health`
-Checks backend responsiveness and PostgreSQL database connectivity.
-
-**Response (200 OK):**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-11-22T05:54:00.000Z",
-  "uptimeSeconds": 142,
-  "service": "joineazy-backend",
-  "version": "1.0.0",
-  "database": {
-    "connected": true,
-    "message": "PostgreSQL database connected successfully"
-  }
-}
-```
-
----
-
-## 🗺️ Roadmap & Phases
-
-- [x] **Phase 1: Project Scaffolding & Health Baseline**
-- [ ] **Phase 2: Authentication & Role-Based Access Control (JWT)**
-- [ ] **Phase 3: Group Formation & Membership Invitations**
-- [ ] **Phase 4: Assignment Distribution & OneDrive Portal Links**
-- [ ] **Phase 5: Two-Step Submission Verification & Analytics**
+- [x] **Phase 1: Project Scaffolding & Health Baseline** (Vite + React, Express, PostgreSQL Pool, Docker Compose)
+- [x] **Phase 2: PostgreSQL Schema, Migrations, JWT Auth & RBAC** (Users, Roles, Secure Cookies, CSRF Token)
+- [x] **Phase 3: Group Formation & Membership Management** (Groups, Members, In-App Invites, Roster Security)
+- [x] **Phase 4: Assignment Distribution & OneDrive Portal Links** (Assignments, Groups Mapping, External Portals)
+- [x] **Phase 5: Two-Step Submission Verification & Analytics** (Declarations, Late Flags, Progress Math, Course Analytics)
+- [x] **Phase 6A: QA, Security Hardening & Deployment Preparation** (Single-Origin Container, Neon SSL, Rate Limiting, Render Blueprint, 134 Tests)

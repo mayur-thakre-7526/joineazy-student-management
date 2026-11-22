@@ -1,8 +1,116 @@
 import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Navbar from './components/common/Navbar';
+import ProtectedRoute from './components/common/ProtectedRoute';
 import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import MyGroupPage from './pages/MyGroupPage';
+import CreateGroupPage from './pages/CreateGroupPage';
+import MyInvitationsPage from './pages/MyInvitationsPage';
+import AssignmentsIndexPage from './pages/assignments/AssignmentsIndexPage';
+import CreateAssignmentPage from './pages/assignments/CreateAssignmentPage';
+import EditAssignmentPage from './pages/assignments/EditAssignmentPage';
+import AssignmentDetailsPage from './pages/assignments/AssignmentDetailsPage';
+import DashboardIndexPage from './pages/DashboardIndexPage';
 
 function App() {
-  return <HomePage />;
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <div className="min-h-screen bg-slate-50 flex flex-col justify-between text-slate-900 antialiased">
+          <div>
+            <Navbar />
+            <main>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+
+                {/* Role-Aware Dashboard (Students & Admins) */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardIndexPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Group Routes (Students) */}
+                <Route
+                  path="/group"
+                  element={
+                    <ProtectedRoute allowedRoles={['STUDENT']}>
+                      <MyGroupPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/groups/create"
+                  element={
+                    <ProtectedRoute allowedRoles={['STUDENT']}>
+                      <CreateGroupPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/invitations"
+                  element={
+                    <ProtectedRoute allowedRoles={['STUDENT']}>
+                      <MyInvitationsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Assignment Routes (Students & Admins) */}
+                <Route
+                  path="/assignments"
+                  element={
+                    <ProtectedRoute>
+                      <AssignmentsIndexPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/assignments/create"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <CreateAssignmentPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/assignments/:id/edit"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <EditAssignmentPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/assignments/:id"
+                  element={
+                    <ProtectedRoute>
+                      <AssignmentDetailsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+          </div>
+          <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-12">
+            <p>Joineazy &copy; {new Date().getFullYear()} — Student, Group & Assignment Management Platform</p>
+          </footer>
+        </div>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
 export default App;

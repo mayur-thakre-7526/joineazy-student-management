@@ -5,7 +5,7 @@ import { checkDatabaseConnection, pool } from './config/db.js';
 
 const app = createApp();
 
-const server = app.listen(env.PORT, async () => {
+const server = app.listen(env.PORT, '0.0.0.0', async () => {
   logger.info(`Joineazy Backend API listening on port ${env.PORT} in ${env.NODE_ENV} mode`);
   logger.info(`Allowed Client Origin: ${env.CLIENT_ORIGIN}`);
 
