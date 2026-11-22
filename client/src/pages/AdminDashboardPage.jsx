@@ -43,9 +43,9 @@ export default function AdminDashboardPage() {
         setError(null);
         const res = await analyticsApi.getAdminAnalytics();
         setAnalytics(res);
-        // Automatically select the first assignment if available
+        // Automatically select the first assignment if available and none selected
         if (res.assignments?.length > 0) {
-          setSelectedAssignmentId(res.assignments[0].id);
+          setSelectedAssignmentId((prev) => prev || res.assignments[0].id);
         }
       } catch (err) {
         setError(err.message || 'Failed to load professor analytics.');
@@ -58,21 +58,35 @@ export default function AdminDashboardPage() {
 
   // Fetch detailed tracking when an assignment is selected
   useEffect(() => {
-    if (!selectedAssignmentId) return;
+    if (!selectedAssignmentId) {
+      setTrackingData(null);
+      return;
+    }
 
+    let isMounted = true;
     async function fetchTracking() {
       try {
         setTrackingLoading(true);
         setTrackingError(null);
         const res = await analyticsApi.getAssignmentSubmissions(selectedAssignmentId);
-        setTrackingData(res);
+        if (isMounted) {
+          setTrackingData(res);
+        }
       } catch (err) {
-        setTrackingError(err.message || 'Failed to load assignment tracking details.');
+        if (isMounted) {
+          setTrackingError(err.message || 'Failed to load assignment tracking details.');
+        }
       } finally {
-        setTrackingLoading(false);
+        if (isMounted) {
+          setTrackingLoading(false);
+        }
       }
     }
     fetchTracking();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedAssignmentId]);
 
   if (loading) {
@@ -308,24 +322,24 @@ export default function AdminDashboardPage() {
               </h3>
             </div>
 
-            {trackingData && (
+            {trackingData?.overall && (
               <div className="flex items-center space-x-4 text-xs text-slate-600">
-                <span>Eligible: <strong>{trackingData.overall.eligible_count}</strong></span>
-                <span>Confirmed: <strong className="text-emerald-600">{trackingData.overall.confirmed_count}</strong></span>
-                <span>Pending: <strong className="text-amber-600">{trackingData.overall.pending_count}</strong></span>
-                <span>Completion: <strong className="text-brand-600">{trackingData.overall.completion_percentage}%</strong></span>
+                <span>Eligible: <strong>{trackingData.overall.eligible_count ?? 0}</strong></span>
+                <span>Confirmed: <strong className="text-emerald-600">{trackingData.overall.confirmed_count ?? 0}</strong></span>
+                <span>Pending: <strong className="text-amber-600">{trackingData.overall.pending_count ?? 0}</strong></span>
+                <span>Completion: <strong className="text-brand-600">{trackingData.overall.completion_percentage ?? 0}%</strong></span>
               </div>
             )}
           </div>
 
-          {trackingLoading ? (
+          {trackingError ? (
+            <div className="p-4 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200">
+              {trackingError}
+            </div>
+          ) : trackingLoading || !trackingData ? (
             <div className="py-12 flex flex-col items-center justify-center text-slate-500">
               <Loader2 className="w-6 h-6 animate-spin text-brand-600 mb-2" />
               <p className="text-xs">Loading submission records...</p>
-            </div>
-          ) : trackingError ? (
-            <div className="p-4 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200">
-              {trackingError}
             </div>
           ) : (
             <div className="space-y-6">
@@ -336,7 +350,7 @@ export default function AdminDashboardPage() {
                   Group-Wise Progress Tracking
                 </h4>
 
-                {trackingData.group_tracking.length === 0 ? (
+                {(trackingData.group_tracking || []).length === 0 ? (
                   <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-100">
                     No active student groups are targeted for this assignment.
                   </p>
@@ -354,7 +368,7 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {trackingData.group_tracking.map((g) => (
+                        {(trackingData.group_tracking || []).map((g) => (
                           <tr key={g.group_id} className="hover:bg-slate-50/50">
                             <td className="py-3 px-4 font-bold text-slate-900">{g.group_name}</td>
                             <td className="py-3 px-4 text-center">{g.eligible_count}</td>
@@ -399,7 +413,7 @@ export default function AdminDashboardPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center">
                     <GraduationCap className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-                    Student-Wise Confirmation Roster ({filteredStudents.length} of {trackingData.student_tracking.length})
+                    Student-Wise Confirmation Roster ({filteredStudents.length} of {(trackingData.student_tracking || []).length})
                   </h4>
 
                   {/* Filters */}
