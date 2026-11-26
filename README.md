@@ -8,11 +8,14 @@ A production-quality, role-based academic management platform designed for Stude
 
 | Resource | Details / URL |
 |---|---|
-| **Live Web App (Current Deployment)** | [https://joineazy-app.onrender.com](https://joineazy-app.onrender.com) *(Round 1 production baseline; Round 2 deployment preflight completed)* |
+| **Live Web App (Production Deployment)** | [https://joineazy-app.onrender.com](https://joineazy-app.onrender.com) *(Round 2 live on Render with Neon PostgreSQL; migrations 001, 002, 003 applied)* |
 | **GitHub Repository** | [https://github.com/mayur-thakre-7526/joineazy-student-management](https://github.com/mayur-thakre-7526/joineazy-student-management) |
-| **Round 2 Release Status** | **Production-Ready & Fully Verified** (Ready for merge to `main` and Phase 5B deployment) |
-| **Backend Test Coverage** | **202 / 202 Automated Assertions Passing (100%)** across 9 test suites |
-| **Live HTTP QA Verification**| **32 / 32 Local HTTP Integration Scenarios Passing (100%)** |
+| **Production Branch** | `main` |
+| **Round 2 Release Status** | **Live in Production & Fully Operational** (Course Details HTTP 500 hotfix deployed & verified) |
+| **Core Automated Test Coverage** | **202 / 202 Automated Assertions Passing (100%)** across 9 core test suites |
+| **Hotfix Regression Verification** | **14 / 14 Course Details Hotfix Checks Passing (100%)** (`verifyCourseDetails.js`) |
+| **Live HTTP QA Verification** | **32 / 32 Local HTTP Integration Scenarios Passing (100%)** |
+| **Live Production Verification** | **Manual End-to-End Workflows Verified** (Professor course & assignment authoring, student self-enrollment, individual submissions, leader group acknowledgments, reflected member statuses) |
 | **Visual QA Verification** | **17 Authentic Browser Screenshots** across 5 responsive breakpoints (`1440px`, `1024px`, `768px`, `375px`, `320px`) |
 
 ---
@@ -37,7 +40,7 @@ Here is an immediate visual walkthrough of the Joineazy system running in real b
 
 ## ⚖️ Round 1 vs. Round 2 Feature Matrix
 
-| Functional Area | Round 1 (Initial Release) | Round 2 (Current Production Ready) |
+| Functional Area | Round 1 (Initial Release) | Round 2 (Live in Production) |
 |---|---|---|
 | **Academic Courses** | None (flat, unorganized assignments) | **Full Course Management**: Professors author courses with unique codes (`LOWER(course_code)` index); students self-enroll via enrollment codes. |
 | **Course Assignment Scope** | Global or group-targeted only | **Course-Scoped Deliverables**: Assignments bind to specific courses; students must be enrolled to access deliverables. Full backwards compatibility for legacy assignments. |
@@ -48,7 +51,7 @@ Here is an immediate visual walkthrough of the Joineazy system running in real b
 | **Assignment Lifecycle (CRUD)**| Create, Read, Update only | **Complete CRUD with Safe Delete**: Professors can Delete assignments; requires authoring ownership (`403` for other professors) and cascades atomically. |
 | **Submission Status Filtering** | Basic listing without filters | **Multi-Criteria Filter Bar**: Real-time status filtering (`All`, `Confirmed`, `Pending`, `Late`) and live multi-attribute search across students and groups. |
 | **UI / UX Architecture** | Developer/testing-oriented cards | **Modern Academic SaaS Design**: Light navy/slate theme, interactive password toggles, 5-stat student dashboard, 6-stat faculty console, mobile touch targets. |
-| **Automated Test Coverage** | 134 automated assertions | **202 Automated Assertions** across 9 test suites + 32 live HTTP QA scenarios with 100% pass rate. |
+| **Automated Test Coverage** | 134 automated assertions | **202 Core Automated Assertions** across 9 suites + **14 Hotfix Checks** + **32 Live HTTP Scenarios** with 100% pass rate. |
 
 ---
 
@@ -230,7 +233,8 @@ joineazy-student-management/
         │   ├── verifyDashboardCases.js # Dashboard edge cases & regression suite (10 scenarios)
         │   ├── verifyRound2Phase1.js   # Round 2 Phase 1 course management test suite (20 scenarios)
         │   ├── verifyRound2Phase2.js   # Round 2 Phase 2 group acknowledgment test suite (30 scenarios)
-        │   └── verifyCrudDelete.js     # Assignment CRUD and safe deletion test suite (8 scenarios)
+        │   ├── verifyCrudDelete.js     # Assignment CRUD and safe deletion test suite (8 scenarios)
+        │   └── verifyCourseDetails.js  # Course details & reflected group status regression suite (14 scenarios)
         ├── utils/
         │   ├── logger.js
         │   └── token.js
@@ -693,11 +697,14 @@ npm --prefix server run test:round2:phase2
 # Run Assignment CRUD & Safe Delete Test Suite (8 test scenarios)
 npm --prefix server run test:crud:delete
 
+# Run Course Details & Reflected Status Hotfix Regression Suite (14 test scenarios)
+npm --prefix server run test:course:details
+
 # Compile Frontend Production Build
 npm --prefix client run build
 ```
 
-### Test Suite Summary
+### Core Test Suite Summary
 | Suite | Scenarios | Focus Area | Status |
 |---|---|---|---|
 | `test:phase2` | 15 | Migrations, Registration, Login, JWT Cookies, Password Hashing, RBAC | **15/15 PASS** |
@@ -709,7 +716,14 @@ npm --prefix client run build
 | `test:round2:phase1` | 20 | Course Creation, Unique Enrollment, Assignment Course Scope, Submission Types, RBAC | **20/20 PASS** |
 | `test:round2:phase2` | 30 | Leader-Only Acknowledgment, Reflected Member Status, Snapshots, Non-Leader Rejection, Analytics | **30/30 PASS** |
 | `test:crud:delete` | 8 | Assignment CRUD Deletion, Author Isolation (403), Non-author 403, Student 403, Cascade Purge | **8/8 PASS** |
-| **Total** | **202** | **Complete Full-Stack Application Verification** | **202/202 PASS** |
+| **Total Core Regression** | **202** | **Complete Baseline Application Verification** | **202/202 PASS** |
+
+### Additional Hotfix Regression Verification
+To maintain strict audit separation between baseline regression metrics and subsequent production release patches, the Course Details hotfix suite is tracked independently:
+
+| Suite | Scenarios | Focus Area | Status |
+|---|---|---|---|
+| `test:course:details` | 14 | Course Details HTTP 500 hotfix: `sc.confirmed` column resolution, enrolled student assignment roster, reflected group acknowledgment status, leader vs member view, unenrolled student blocking (403), invalid UUID (400) | **14/14 PASS** |
 
 ---
 
@@ -812,18 +826,26 @@ A live end-to-end audit executed against the running Express application and loc
 - **Group Acknowledgment Security**: Non-leader member acknowledgment blocked (403 Forbidden), individual confirm endpoint on group assignment blocked (400 Bad Request), leader acknowledgment accepted (201), duplicate acknowledgment rejected (409 Conflict), member reflected status confirmed (200).
 - **Professor Analytics**: Accurate group acknowledgment tracking, member status reflection, zero duplicate counting, and correct percentage calculation.
 
-### 3. Production Deployment Preparation Checklist (Render + Neon)
-Before deploying Round 2 to production:
-1. **Neon PostgreSQL Database Migrations**:
-   - Run migration `002_courses_and_submission_types.sql` to create `courses`, `course_enrollments`, and extend `assignments`.
-   - Run migration `003_group_submission_acknowledgments.sql` to create `group_submission_acknowledgments` and `group_submission_member_snapshots`.
-   - The migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) and safe against existing Round 1 records.
-2. **Environment Variables on Render**:
-   - Ensure `NODE_ENV=production`.
-   - Ensure `DATABASE_URL` contains the Neon connection string with TLS enabled (`sslmode=require`).
-   - Ensure `JWT_SECRET` and `CSRF_SECRET` are securely generated 64-character hex strings.
-3. **Single-Origin Express Runner**:
-   - The production Dockerfile and Render build script build the Vite frontend (`npm --prefix client run build`) and Express statically serves `client/dist` from the same origin, avoiding CORS issues and cookie domain mismatches.
+### 3. Production Release & Hotfix History (Render + Neon)
+
+Round 2 is **live in production** on Render connected to Neon serverless PostgreSQL:
+1. **Production Deployment Execution**:
+   - **Production Branch**: `main` (auto-deployed to Render Web Service).
+   - **Database Migrations**: Migrations `001_initial_schema.sql`, `002_courses_and_submission_types.sql`, and `003_group_submission_acknowledgments.sql` were applied to the production Neon PostgreSQL database without modifying or deleting existing records.
+   - **Single-Origin Deployment**: Built via multi-stage Dockerfile (`npm --prefix client run build` served statically through Express on port 5000), eliminating CORS latency and cookie domain mismatches.
+2. **Course Details HTTP 500 Hotfix Release Note**:
+   - **Issue**: On the live deployment, students navigating to course details (`/api/courses/:id/assignments`) received HTTP 500 with `column sc.confirmed does not exist`.
+   - **Root Cause Analysis**: In `server/src/models/courseModel.js`, the assignments SQL query selected `sc.confirmed` from `submission_confirmations` (which only maintains `confirmed_at`). Furthermore, group assignments were not joined to `group_submission_acknowledgments`, preventing students from viewing reflected group submission status in course assignment lists.
+   - **Resolution**:
+     - Corrected `is_confirmed`, `confirmed_at`, and `is_late` calculations in `courseModel.js` to derive status safely from `(sc.confirmed_at IS NOT NULL)`.
+     - Added `LEFT JOIN group_submission_acknowledgments gsa` so group deliverable statuses reflect team confirmations accurately for all active group members.
+     - Authored dedicated test suite `server/src/scripts/verifyCourseDetails.js` verifying 14 discrete scenarios (enrolled student visibility, individual confirmations, group reflections, leader vs member status, 403 for unenrolled students, and 400 for invalid UUIDs).
+   - **Release**: Hotfix merged into `main` (commit `515cced`), deployed live on Render, and verified.
+3. **Live Production Manual Verification**:
+   - **Professor Coursework Management**: Verified professor course creation (`CS-201`, `CS-301`), deliverable authoring (`INDIVIDUAL` and `GROUP`), and real-time roster inspection.
+   - **Student Coursework Lifecycle**: Verified student self-enrollment via course code, course assignment visibility, individual two-step OneDrive submission confirmation, and instant dashboard updates.
+   - **Group Leader Acknowledgment**: Verified group creation, member invitation and acceptance, leader-only modal acknowledgment, and immediate reflected submission status across all active team members.
+   - **Professor Oversight Analytics**: Verified course-level and assignment-level completion metrics accurately distinguish individual and group cohorts with zero division errors.
 
 ---
 
@@ -840,3 +862,6 @@ Before deploying Round 2 to production:
 - [x] **Round 2 - Phase 2.5: Test Database Restoration & Integration Verification** (Dedicated `joineazy_round2_test` DB, Model Alignment, 194/194 initial tests passing)
 - [x] **Round 2 - Phase 3: Professional UI/UX Enhancement** (Modern Academic SaaS Design, Password Toggles, 5-Stat Student Dashboard, 6-Stat Professor Console, Group Acknowledgment Modals, Responsive Grids)
 - [x] **Round 2 - Phase 4: Full QA, Browser Verification, Security Audit & Production Readiness** (Real Chrome CDP Automation, 17 Authentic Screenshots, 202 Backend Tests Reconciled across 9 Suites, 32 Live HTTP Probes, Zero Console Errors, Production Deployment Checklist)
+- [x] **Round 2 - Phase 5: Production Deployment on Render & Neon** (Live release on branch `main`, migrations 001, 002, 003 applied, TLS SSL connection pool)
+- [x] **Round 2 - Course Details HTTP 500 Hotfix** (Resolved `sc.confirmed` column error, implemented reflected group acknowledgments in course assignments, added 14/14 automated checks via `test:course:details`)
+- [x] **Round 2 - Live Production Manual Verification** (End-to-end audit in live production environment verifying professor, student, and team workflows)
