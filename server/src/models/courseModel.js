@@ -201,13 +201,30 @@ export const CourseModel = {
              a.due_date, a.onedrive_link, a.scope, a.submission_type, a.created_at, a.updated_at,
              c.title as course_title, c.course_code,
              u.full_name as professor_name, u.email as professor_email,
-             COALESCE(sc.confirmed, false) as is_confirmed,
-             sc.confirmed_at
+             CASE
+               WHEN a.submission_type = 'GROUP' THEN (gsa.acknowledged_at IS NOT NULL)
+               ELSE (sc.confirmed_at IS NOT NULL)
+             END as is_confirmed,
+             CASE
+               WHEN a.submission_type = 'GROUP' THEN gsa.acknowledged_at
+               ELSE sc.confirmed_at
+             END as confirmed_at,
+             CASE
+               WHEN a.submission_type = 'GROUP' THEN (gsa.acknowledged_at > a.due_date)
+               ELSE (sc.confirmed_at > a.due_date)
+             END as is_late,
+             gsa.acknowledged_by as group_acknowledged_by,
+             leader.full_name as group_acknowledged_by_name,
+             (g.created_by = $2) as is_group_leader,
+             g.name as group_name
       FROM assignments a
       JOIN courses c ON a.course_id = c.id
       JOIN users u ON a.professor_id = u.id
       LEFT JOIN assignment_groups ag ON a.id = ag.assignment_id
       LEFT JOIN submission_confirmations sc ON a.id = sc.assignment_id AND sc.student_id = $2
+      LEFT JOIN group_submission_acknowledgments gsa ON a.id = gsa.assignment_id AND gsa.group_id = $3
+      LEFT JOIN users leader ON gsa.acknowledged_by = leader.id
+      LEFT JOIN groups g ON g.id = $3
       WHERE a.course_id = $1
         AND (a.scope = 'ALL' OR (a.scope = 'SPECIFIC_GROUPS' AND ag.group_id = $3))
       ORDER BY a.due_date ASC;

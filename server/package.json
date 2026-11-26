@@ -17,7 +17,8 @@
     "test:dashboard": "node src/scripts/verifyDashboardCases.js",
     "test:round2:phase1": "node src/scripts/verifyRound2Phase1.js",
     "test:round2:phase2": "node src/scripts/verifyRound2Phase2.js",
-    "test:crud:delete": "node src/scripts/verifyCrudDelete.js"
+    "test:crud:delete": "node src/scripts/verifyCrudDelete.js",
+    "test:course:details": "node src/scripts/verifyCourseDetails.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
