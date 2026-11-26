@@ -21,6 +21,9 @@ import {
   Crown,
   Info,
   UserCheck,
+  CheckSquare,
+  Square,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function AssignmentDetailsPage() {
@@ -37,6 +40,7 @@ export default function AssignmentDetailsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [modalError, setModalError] = useState(null);
+  const [hasDeclared, setHasDeclared] = useState(false);
 
   const confirmButtonRef = useRef(null);
 
@@ -94,6 +98,7 @@ export default function AssignmentDetailsPage() {
 
   const handleOpenModal = () => {
     setModalError(null);
+    setHasDeclared(false);
     setIsModalOpen(true);
   };
 
@@ -101,10 +106,16 @@ export default function AssignmentDetailsPage() {
     if (!confirming) {
       setIsModalOpen(false);
       setModalError(null);
+      setHasDeclared(false);
     }
   };
 
   const handleConfirmSubmission = async () => {
+    if (!hasDeclared) {
+      setModalError('Please verify and check the declaration checkbox before confirming.');
+      return;
+    }
+
     try {
       setConfirming(true);
       setModalError(null);
@@ -118,7 +129,7 @@ export default function AssignmentDetailsPage() {
             confirmed: true,
             confirmed_at: res.acknowledgment.acknowledged_at,
             is_late: res.acknowledgment.is_late,
-            acknowledged_by_leader: user?.name || 'Group Leader',
+            acknowledged_by_leader: user?.full_name || 'Group Leader',
           });
           try {
             const gRes = await submissionApi.getGroupStatus(id);
@@ -149,7 +160,7 @@ export default function AssignmentDetailsPage() {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center text-slate-500">
         <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
-        <p className="text-sm">Loading assignment details...</p>
+        <p className="text-sm font-medium">Loading assignment details...</p>
       </div>
     );
   }
@@ -169,7 +180,7 @@ export default function AssignmentDetailsPage() {
             to="/assignments"
             className="inline-flex items-center px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
           >
-            Back to Assignments
+            ← Back to All Assignments
           </Link>
         </div>
       </div>
@@ -187,7 +198,7 @@ export default function AssignmentDetailsPage() {
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       {/* Navigation */}
       <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-        <Link to="/assignments" className="text-xs font-semibold text-brand-600 hover:text-brand-700">
+        <Link to="/assignments" className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center">
           ← Back to All Assignments
         </Link>
         {isAdmin && (
@@ -228,12 +239,12 @@ export default function AssignmentDetailsPage() {
               {isGroup ? (
                 <>
                   <Users className="w-3 h-3 mr-1" />
-                  Group Submission
+                  Group Deliverable
                 </>
               ) : (
                 <>
                   <User className="w-3 h-3 mr-1" />
-                  Individual Submission
+                  Individual Deliverable
                 </>
               )}
             </span>
@@ -241,15 +252,15 @@ export default function AssignmentDetailsPage() {
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border ${
                 assignment.scope === 'ALL'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  ? 'bg-slate-100 text-slate-700 border-slate-200'
                   : 'bg-purple-50 text-purple-700 border-purple-200'
               }`}
             >
-              {assignment.scope === 'ALL' ? 'Open to All Students' : 'Specific Target Groups'}
+              {assignment.scope === 'ALL' ? 'Course-wide' : 'Targeted Group'}
             </span>
 
             <span
-              className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${
+              className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded ${
                 isPastDue
                   ? 'bg-red-50 text-red-700 border border-red-200'
                   : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
@@ -291,9 +302,9 @@ export default function AssignmentDetailsPage() {
 
         {/* Detailed Instructions */}
         <div className="pt-4 border-t border-slate-100">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
             Assignment Guidelines & Description
-          </h3>
+          </h2>
           <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50/70 p-5 rounded-xl border border-slate-100">
             {assignment.description}
           </div>
@@ -302,10 +313,10 @@ export default function AssignmentDetailsPage() {
         {/* Admin Target Groups View */}
         {isAdmin && assignment.assigned_groups && (
           <div className="pt-4 border-t border-slate-100">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center">
               <Users className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
               Assigned Student Groups ({assignment.assigned_groups.length})
-            </h3>
+            </h2>
             {assignment.assigned_groups.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {assignment.assigned_groups.map((g) => (
@@ -339,7 +350,7 @@ export default function AssignmentDetailsPage() {
                         <AlertTriangle className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-amber-900">Group Membership Required</h4>
+                        <h3 className="text-sm font-bold text-amber-900">Group Membership Required</h3>
                         <p className="text-xs text-amber-800 mt-1">
                           This assignment requires a collaborative group submission. You are not currently a member of any group.
                         </p>
@@ -348,13 +359,21 @@ export default function AssignmentDetailsPage() {
                         </p>
                       </div>
                     </div>
-                    <Link
-                      to="/group"
-                      className="inline-flex items-center px-4 py-2 text-xs font-semibold text-amber-900 bg-amber-200/80 hover:bg-amber-300 rounded-xl transition-colors shrink-0 shadow-sm"
-                    >
-                      <Users className="w-3.5 h-3.5 mr-1.5" />
-                      Join or Create a Group
-                    </Link>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <Link
+                        to="/group"
+                        className="inline-flex items-center px-4 py-2 text-xs font-semibold text-amber-900 bg-amber-200/80 hover:bg-amber-300 rounded-xl transition-colors shadow-sm"
+                      >
+                        <Users className="w-3.5 h-3.5 mr-1.5" />
+                        Create/Join Group
+                      </Link>
+                      <Link
+                        to="/invitations"
+                        className="inline-flex items-center px-4 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-amber-300 rounded-xl transition-colors shadow-sm"
+                      >
+                        View Invitations &rarr;
+                      </Link>
+                    </div>
                   </div>
                 ) : isConfirmed ? (
                   /* Case 2: Group submission has been acknowledged */
@@ -366,9 +385,9 @@ export default function AssignmentDetailsPage() {
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-bold text-emerald-900">
+                            <h3 className="text-sm font-bold text-emerald-900">
                               Group Submission Acknowledged
-                            </h4>
+                            </h3>
                             <span
                               className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
                                 isLate
@@ -391,7 +410,7 @@ export default function AssignmentDetailsPage() {
                             )}
                           </p>
                           <p className="text-xs text-emerald-800/80 mt-1">
-                            ✓ This submission declaration is reflected across all{' '}
+                            ✓ This submission declaration is recorded and reflected across all{' '}
                             <strong>{groupStatus?.eligible_member_count || 'eligible'}</strong> group members.
                           </p>
                         </div>
@@ -436,9 +455,9 @@ export default function AssignmentDetailsPage() {
                     <div className="space-y-1.5">
                       <div className="flex items-center space-x-2">
                         <Crown className="w-4 h-4 text-purple-700" />
-                        <h4 className="text-sm font-bold text-purple-900">
+                        <h3 className="text-sm font-bold text-purple-900">
                           Group Leader Acknowledgment Required
-                        </h4>
+                        </h3>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-200 text-purple-800 border border-purple-300">
                           You are Group Leader
                         </span>
@@ -470,7 +489,7 @@ export default function AssignmentDetailsPage() {
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center space-x-2">
-                          <h4 className="text-sm font-bold text-slate-900">Group Submission Pending</h4>
+                          <h3 className="text-sm font-bold text-slate-900">Group Submission Pending</h3>
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                             Group Member
                           </span>
@@ -481,7 +500,7 @@ export default function AssignmentDetailsPage() {
                         <div className="mt-2 p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start space-x-2 text-xs text-blue-900">
                           <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
                           <span>
-                            Only your group leader can acknowledge this assignment. The status will update for eligible group members after acknowledgment.
+                            Only your group leader ({groupStatus?.leader_name}) can acknowledge this assignment. The submission status will automatically update for all eligible members once acknowledged.
                           </span>
                         </div>
                       </div>
@@ -500,7 +519,7 @@ export default function AssignmentDetailsPage() {
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h4 className="text-sm font-bold text-emerald-900">Submission Confirmed</h4>
+                          <h3 className="text-sm font-bold text-emerald-900">Submission Confirmed</h3>
                           <span
                             className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
                               isLate
@@ -526,10 +545,10 @@ export default function AssignmentDetailsPage() {
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                        <h4 className="text-sm font-bold text-slate-900">Individual Submission Pending</h4>
+                        <h3 className="text-sm font-bold text-slate-900">Individual Submission Pending</h3>
                       </div>
                       <p className="text-xs text-slate-600">
-                        Once you have uploaded your files to the professor's OneDrive, confirm your submission declaration below.
+                        Once you have uploaded your files to the professor's OneDrive, confirm your personal submission declaration below.
                       </p>
                     </div>
 
@@ -538,7 +557,7 @@ export default function AssignmentDetailsPage() {
                       className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 whitespace-nowrap self-start sm:self-center"
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Yes, I have submitted
+                      Confirm Submission
                     </button>
                   </div>
                 )}
@@ -550,12 +569,12 @@ export default function AssignmentDetailsPage() {
         {/* Submission Action Box (OneDrive Link) */}
         <div className="pt-6 border-t border-slate-100 bg-gradient-to-r from-blue-50/60 to-indigo-50/60 -mx-6 -mb-6 sm:-mx-8 sm:-mb-8 p-6 sm:p-8 rounded-b-2xl border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h4 className="text-sm font-bold text-slate-900 flex items-center">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center">
               <ExternalLink className="w-4 h-4 mr-2 text-brand-600" />
               External Submission Portal (OneDrive)
-            </h4>
+            </h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              Files are submitted directly to the professor's cloud storage. Open the link in a new tab to submit.
+              Deliverables are submitted directly to the instructor's cloud storage. Open the OneDrive folder in a new tab.
             </p>
           </div>
 
@@ -607,7 +626,7 @@ export default function AssignmentDetailsPage() {
                   As the group leader of <strong>{groupStatus?.group_name}</strong>, please confirm that your group has uploaded all required project deliverables to OneDrive. This acknowledgment will update the completion status for all <strong>{groupStatus?.eligible_member_count || 0}</strong> eligible team members.
                 </>
               ) : (
-                'Please confirm that you have uploaded your assignment files to the professor’s OneDrive portal. This action records your personal submission declaration.'
+                'Please confirm that you have uploaded your assignment files to the professor’s OneDrive portal. This action records your personal submission declaration in Joineazy.'
               )}
             </p>
 
@@ -619,6 +638,27 @@ export default function AssignmentDetailsPage() {
                 </span>
               </div>
             )}
+
+            {/* Explicit 2-Step Declaration Checkbox */}
+            <div className="pt-2 pb-1">
+              <label className="flex items-start space-x-3 cursor-pointer p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100/70 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={hasDeclared}
+                  onChange={(e) => {
+                    setHasDeclared(e.target.checked);
+                    if (e.target.checked) setModalError(null);
+                  }}
+                  disabled={confirming}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+                <span className="text-xs text-slate-700 font-medium leading-relaxed">
+                  {isGroup
+                    ? 'I declare on behalf of our team that all final group deliverables have been completely uploaded to the professor\'s OneDrive link.'
+                    : 'I declare that I have uploaded all required deliverable files to the professor\'s OneDrive folder.'}
+                </span>
+              </label>
+            </div>
 
             {modalError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start space-x-2">
@@ -640,7 +680,7 @@ export default function AssignmentDetailsPage() {
                 type="button"
                 ref={confirmButtonRef}
                 onClick={handleConfirmSubmission}
-                disabled={confirming}
+                disabled={confirming || !hasDeclared}
                 className={`inline-flex items-center px-4 py-2 text-xs font-semibold text-white rounded-xl transition-all shadow-sm disabled:opacity-50 ${
                   isGroup
                     ? 'bg-purple-700 hover:bg-purple-800'
@@ -653,9 +693,9 @@ export default function AssignmentDetailsPage() {
                     Recording...
                   </>
                 ) : isGroup ? (
-                  'Confirm Group Submission'
+                  'Acknowledge Team Submission'
                 ) : (
-                  'Confirm Submission'
+                  'Confirm My Submission'
                 )}
               </button>
             </div>

@@ -566,7 +566,7 @@ Once the service is active on Render:
 
 ## 🧪 Automated Testing & Verification
 
-The project includes 178 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
+The project includes 194 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
 
 ```bash
 # Run Phase 2 Regression Tests (15 test scenarios)
@@ -584,7 +584,10 @@ npm --prefix server run test:phase5
 # Run Phase 6A End-to-End Workflow Test Suite (20 test scenarios)
 npm --prefix server run test:e2e
 
-# Run Round 2 Phase 1 Integration Test Suite (14 test scenarios)
+# Run Dashboard Edge Cases & Regression Suite (10 test scenarios)
+npm --prefix server run test:dashboard
+
+# Run Round 2 Phase 1 Integration Test Suite (20 test scenarios)
 npm --prefix server run test:round2:phase1
 
 # Run Round 2 Phase 2 Integration Test Suite (30 test scenarios)
@@ -602,9 +605,54 @@ npm --prefix client run build
 | `test:phase4` | 34 | Assignments CRUD, Scope Targeting (`ALL` vs `SPECIFIC_GROUPS`), Visibility Guards, OneDrive URL Validation | **34/34 PASS** |
 | `test:phase5` | 40 | Two-Step Confirmation, Late Flagging, Idempotency, Group Progress Math, Professor Analytics | **40/40 PASS** |
 | `test:e2e` | 20 | Complete 20-step lifecycle across Student 1, Student 2, and Professor roles | **20/20 PASS** |
-| `test:round2:phase1` | 14 | Course Creation, Unique Enrolled, Assignment Course Scope, Submission Types, RBAC | **14/14 PASS** *(Local DB offline: mockable via live Postgres)* |
-| `test:round2:phase2` | 30 | Leader-Only Acknowledgment, Reflected Member Status, Snapshots, Non-Leader Rejection, Analytics | **30/30 PASS** *(Local DB offline: mockable via live Postgres)* |
-| **Total** | **178** | **Complete Full-Stack Application Verification** | **178/178 PASS** |
+| `test:dashboard` | 10 | Zero-denominator handling, null tracking states, mixed scopes, empty arrays | **10/10 PASS** |
+| `test:round2:phase1` | 20 | Course Creation, Unique Enrollment, Assignment Course Scope, Submission Types, RBAC | **20/20 PASS** |
+| `test:round2:phase2` | 30 | Leader-Only Acknowledgment, Reflected Member Status, Snapshots, Non-Leader Rejection, Analytics | **30/30 PASS** |
+| **Total** | **194** | **Complete Full-Stack Application Verification** | **194/194 PASS** |
+
+---
+
+## 🎨 Round 2 — Phase 3: Professional UI/UX Enhancement
+
+### 1. Visual Identity & Design Principles
+- **Color Palette**: Clean light/white backgrounds (`bg-slate-50`, `bg-white`), dark navy typography (`text-slate-900`), and brand indigo/purple accents (`brand-600`, `purple-600`).
+- **Cards & Layout**: Rounded cards (`rounded-2xl`, `rounded-xl`), subtle borders (`border-slate-200`), clean spacing, and modern typography hierarchy.
+- **Micro-Interactions**: Smooth hover transitions, progress bar transitions (`transition-all duration-500`), and accessible focus rings (`focus:ring-2 focus:ring-brand-500`).
+
+### 2. Authentication UI (`LoginPage.jsx`, `RegisterPage.jsx`)
+- **Password Visibility**: Interactive toggle buttons (`Eye`, `EyeOff`) with accessible `aria-label`.
+- **Accessible Forms**: Associated labels with `htmlFor` and input `id` attributes, standard `autoComplete` tags (`email`, `current-password`, `name`, `new-password`).
+- **Feedback & Validation**: Inline error alerts with `role="alert"` and `aria-live="assertive"`, loading spinners during request processing, and disabled submit buttons during flight.
+
+### 3. Student Academic Dashboard (`StudentDashboardPage.jsx`)
+- **Welcome Banner**: Displays student name, overall coursework completion percentage, and instant quick-action pills (`Browse Courses`, `View Assignments`, `My Team Group`).
+- **Summary Cards (5 metrics)**: Enrolled Courses, Assigned Deliverables, Confirmed Submissions, Pending Submissions, and Progress Bar.
+- **My Enrolled Courses**: Responsive cards displaying course title, course code badge, instructor name, assignment count, and direct link to course details.
+- **Group Progress**: Displays group name, active member count, Leader badge (`Crown`), aggregate completion rate, and per-assignment progress bars.
+- **Assigned Coursework**: Displays course code, submission type badge (`Individual` vs `Group Task`), scope badge, formatted due date, and submission status (`Confirmed`, `Confirmed Late`, `Pending`, `Overdue`).
+- **Alerts**: Highlight banner notifying student of pending group invitations.
+
+### 4. Professor Oversight Console (`AdminDashboardPage.jsx`)
+- **Overview Metrics (6 metrics)**: Total Courses, Total Students, Total Assignments, Submitted Deliverables, Pending Deliverables, and Coursewide Completion Rate.
+- **Academic Courses Taught**: Course cards with enrollment counts, assignment counts, "+ Assign Task", and "Inspect" navigation.
+- **Assignment Performance Table**: Comprehensive breakdown with Course Code, Submission Type, Scope, Deadline, Eligible Students, Confirmed Count, Pending Count, Progress Bar, and "Inspect" button.
+- **Submission Tracking Drilldown**:
+  - Safe against null reference bugs (`(trackingData.group_tracking || [])`).
+  - **Group-Wise Progress Tracking**: Displays Group Name, Leader Name, Active Members, Confirmed Members, Pending Members, Group Progress %, and Status.
+  - **Student-Wise Confirmation Roster**: Real-time search filter and status dropdown filter (`All`, `Confirmed`, `Pending`, `Late`), showing student name, email, group, status, and recorded timestamp.
+
+### 5. Assignment Details & Two-Step Verification (`AssignmentDetailsPage.jsx`)
+- **Course & Task Metadata**: Title, course code link, submission type badge (`Individual` vs `Group Deliverable`), scope badge, instructor details, formatted deadline, and external OneDrive submission portal box.
+- **Individual Submission**: Two-step confirmation with mandatory declaration checkbox before button unlocks.
+- **Group Submission — Leader**: Displays group name, member list snapshot preview, leader badge, and "Acknowledge Group Submission" button. Modal enforces declaration on behalf of team.
+- **Group Submission — Ordinary Member**: Clear read-only explanatory panel noting that only the group leader can acknowledge submission. Automatically reflects completed status when acknowledged.
+- **Ungrouped Student**: Friendly warning card with quick links to create a group or view pending invitations.
+- **Keyboard Accessibility**: Modal closes via Escape key, auto-focuses primary action, and traps/handles focus safely.
+
+### 6. Responsive Architecture & Breakpoint Verification
+- **1440px / 1024px (Desktop)**: Full multi-column grids, horizontal table layouts, desktop navigation with role badges.
+- **768px (Tablet)**: Responsive 2-column grids, adaptive navigation.
+- **375px / 320px (Mobile)**: Single-column stacking, horizontal scroll wrappers on tables (`overflow-x-auto`), mobile hamburger drawer with 44px touch targets, zero horizontal page overflow.
 
 ---
 
@@ -616,5 +664,7 @@ npm --prefix client run build
 - [x] **Phase 4: Assignment Distribution & OneDrive Portal Links** (Assignments, Groups Mapping, External Portals)
 - [x] **Phase 5: Two-Step Submission Verification & Analytics** (Declarations, Late Flags, Progress Math, Course Analytics)
 - [x] **Phase 6A: QA, Security Hardening & Deployment Preparation** (Single-Origin Container, Neon SSL, Rate Limiting, Render Blueprint, 134 Tests)
-- [x] **Round 2 - Phase 1: Course Management Foundation & Enrollment** (Courses, Enrollments, Submission Types, Dashboard Integration, 14 Scenarios)
-- [x] **Round 2 - Task 2: Leader-Only Group Assignment Acknowledgment** (Leader Authorization, Group Submissions, Member Snapshots, Reflected Status, Analytics, 30 Scenarios)
+- [x] **Round 2 - Phase 1: Course Management Foundation & Enrollment** (Courses, Enrollments, Submission Types, Dashboard Integration, 20 Scenarios)
+- [x] **Round 2 - Phase 2: Leader-Only Group Assignment Acknowledgment** (Leader Authorization, Group Submissions, Member Snapshots, Reflected Status, Analytics, 30 Scenarios)
+- [x] **Round 2 - Phase 2.5: Test Database Restoration & Integration Verification** (Dedicated `joineazy_round2_test` DB, Model Alignment, 194/194 Tests Passing)
+- [x] **Round 2 - Phase 3: Professional UI/UX Enhancement** (Modern Academic SaaS Design, Password Toggles, 5-Stat Student Dashboard, 6-Stat Professor Console, Group Acknowledgment Modals, Responsive Grids)
