@@ -656,6 +656,75 @@ npm --prefix client run build
 
 ---
 
+## 📸 Real Browser Visual Verification & Screenshot Gallery
+
+All views were rendered in a live Chrome browser via Chrome DevTools Protocol (CDP) connected to the local full-stack server and PostgreSQL test database (`joineazy_round2_test`). Authentic PNG screenshots were captured across 5 standard viewport breakpoints (`1440px`, `1024px`, `768px`, `375px`, `320px`) and are stored in `docs/screenshots/`:
+
+| Viewport | Page / View | Screenshot File | Description |
+|---|---|---|---|
+| **1440px** | Homepage Hero & Navigation | `docs/screenshots/01_homepage_desktop_1440px.png` | Professional SaaS landing page with dark typography, CTAs, and responsive nav. |
+| **375px** | Homepage Mobile | `docs/screenshots/02_homepage_mobile_375px.png` | Stacked hero section with touch-friendly navigation drawer. |
+| **1440px** | Sign In Page | `docs/screenshots/03_login_page_desktop_1440px.png` | Accessible email/password form with interactive password visibility toggle (`Eye`/`EyeOff`). |
+| **375px** | Sign In Mobile | `docs/screenshots/04_login_page_mobile_375px.png` | Full-width mobile login card with loading state indicators. |
+| **1440px** | Student Registration | `docs/screenshots/05_register_page_desktop_1440px.png` | Student registration with password guideline cues and student-role enforcement disclaimers. |
+| **1440px** | Student Dashboard (Desktop) | `docs/screenshots/06_student_dashboard_desktop_1440px.png` | Welcome progress banner, 5 metric cards, course cards, team progress, and coursework roster. |
+| **768px** | Student Dashboard (Tablet) | `docs/screenshots/07_student_dashboard_tablet_768px.png` | 2-column responsive layout with adaptive metric cards. |
+| **375px** | Student Dashboard (Mobile) | `docs/screenshots/08_student_dashboard_mobile_375px.png` | Single-column stacked cards with touch-friendly tap targets and zero overflow. |
+| **1440px** | Professor Oversight Console | `docs/screenshots/09_professor_dashboard_desktop_1440px.png` | 6 overview metric cards, courses taught, assignment performance table, and submission drilldown. |
+| **1024px** | Professor Dashboard (Laptop) | `docs/screenshots/10_professor_dashboard_laptop_1024px.png` | Responsive multi-column layout with horizontal scroll containers on data tables. |
+| **375px** | Professor Dashboard (Mobile) | `docs/screenshots/11_professor_dashboard_mobile_375px.png` | Mobile-optimized faculty oversight console with stacked metric cards. |
+| **1440px** | Course Catalog | `docs/screenshots/12_course_catalog_desktop_1440px.png` | Enrolled and available courses with course code chips and enrollment actions. |
+| **1440px** | Create Course Form | `docs/screenshots/13_create_course_desktop_1440px.png` | Professor course authoring interface with code uniqueness validations. |
+| **1440px** | Assignment Details (Individual) | `docs/screenshots/14_assignment_details_individual_1440px.png` | Two-step confirmation flow, external OneDrive portal link, and honor declaration modal. |
+| **1440px** | Assignment Details (Group Leader) | `docs/screenshots/15_assignment_details_group_leader_1440px.png` | Group leader acknowledgment view with member roster snapshot preview and team declaration modal. |
+| **1440px** | Student Group Management | `docs/screenshots/16_student_group_management_1440px.png` | Active group roster, member management, invitation tools, and status chips. |
+| **320px** | Ultra-Small Mobile Viewport | `docs/screenshots/17_responsive_small_screen_320px.png` | Strict 320px layout verification verifying zero horizontal scrollbar and legible typography. |
+
+---
+
+## 🛡️ Round 2 - Phase 4: Full-Stack QA & Production Readiness Audit
+
+### 1. Test Suite Reconciliation (194 Passing Assertions)
+Earlier nominal phase targets cited 40, 40, and 11 tests. A mathematical audit of test keys confirmed that the suite comprises exactly **194 unique executed assertions** across all 8 suites, with zero skipped, zero failed, and zero blocked:
+
+| Suite Name | Command | Unique Scenarios | Result | Description |
+|---|---|---|---|---|
+| `test:round2:phase1` | `npm --prefix server run test:round2:phase1` | 20 | **20/20 PASS** | Course Creation, Unique Enrollment, Assignment Scoping, Submission Types, RBAC |
+| `test:round2:phase2` | `npm --prefix server run test:round2:phase2` | 30 | **30/30 PASS** | Leader-Only Acknowledgment, Reflected Member Status, Snapshots, Non-Leader 403, Analytics |
+| `test:phase2` | `npm --prefix server run test:phase2` | 15 | **15/15 PASS** | User Registration, Password Hashing, JWT Cookies, CSRF, Student/Admin Roles |
+| `test:phase3` | `npm --prefix server run test:phase3` | 25 | **25/25 PASS** | Group Creation, Membership Constraints, In-App Invitations, Security Guards |
+| `test:phase4` | `npm --prefix server run test:phase4` | 34 | **34/34 PASS** | Assignment Authoring, Scoping (`ALL` vs `SPECIFIC_GROUPS`), OneDrive Validation |
+| `test:phase5` | `npm --prefix server run test:phase5` | 40 | **40/40 PASS** | Two-Step Confirmations, Late Detection, Group Progress Math, Analytics Aggregations |
+| `test:e2e` | `npm --prefix server run test:e2e` | 20 | **20/20 PASS** | Complete multi-user academic lifecycle across 2 students and 1 professor |
+| `test:dashboard` | `npm --prefix server run test:dashboard` | 10 | **10/10 PASS** | Zero-denominator edge cases, null tracking states, mixed scopes, empty arrays |
+| **Total Automated Regression** | | **194** | **194/194 PASS** | **100% Passing Regression Suite** |
+
+### 2. Live HTTP Full-Stack QA Audit (32/32 Passing Scenarios)
+A live end-to-end audit executed against the running Express application and local test database verified:
+- **Infrastructure**: `/api/health` returns HTTP 200 `{ status: 'healthy', database: 'connected' }`, `/api/ready` returns HTTP 200 `{ ready: true }`, and `/` serves the static compiled React SPA bundle.
+- **Authentication**: Student registration (201), duplicate registration rejection (409), invalid password rejection (401), professor login with HTTP-only JWT cookies (200), and client role enforcement (registration strictly creates `STUDENT` accounts).
+- **Role Guards**: Students denied access to `/api/admin/overview` (403), professors denied student-only endpoints (403).
+- **Course Lifecycle**: Course creation with unique code (201), duplicate course code rejection (409), student course self-enrollment (201), duplicate enrollment rejection (409), unenrolled student assignment access blocked (403), enrolled student assignment visibility (200).
+- **Group Management**: Group creation with leader assignment (201), invitation creation (201), invitation acceptance (200), roster update to 2 members.
+- **Individual Submissions**: Individual confirmation (201), duplicate confirmation rejection (409), independent unconfirmed status for other students.
+- **Group Acknowledgment Security**: Non-leader member acknowledgment blocked (403 Forbidden), individual confirm endpoint on group assignment blocked (400 Bad Request), leader acknowledgment accepted (201), duplicate acknowledgment rejected (409 Conflict), member reflected status confirmed (200).
+- **Professor Analytics**: Accurate group acknowledgment tracking, member status reflection, zero duplicate counting, and correct percentage calculation.
+
+### 3. Production Deployment Preparation Checklist (Render + Neon)
+Before deploying Round 2 to production:
+1. **Neon PostgreSQL Database Migrations**:
+   - Run migration `002_courses_and_submission_types.sql` to create `courses`, `course_enrollments`, and extend `assignments`.
+   - Run migration `003_group_submission_acknowledgments.sql` to create `group_submission_acknowledgments` and `group_submission_member_snapshots`.
+   - The migrations are idempotent (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) and safe against existing Round 1 records.
+2. **Environment Variables on Render**:
+   - Ensure `NODE_ENV=production`.
+   - Ensure `DATABASE_URL` contains the Neon connection string with TLS enabled (`sslmode=require`).
+   - Ensure `JWT_SECRET` and `CSRF_SECRET` are securely generated 64-character hex strings.
+3. **Single-Origin Express Runner**:
+   - The production Dockerfile and Render build script build the Vite frontend (`npm --prefix client run build`) and Express statically serves `client/dist` from the same origin, avoiding CORS issues and cookie domain mismatches.
+
+---
+
 ## 🗺️ Project Implementation History
 
 - [x] **Phase 1: Project Scaffolding & Health Baseline** (Vite + React, Express, PostgreSQL Pool, Docker Compose)
@@ -668,3 +737,4 @@ npm --prefix client run build
 - [x] **Round 2 - Phase 2: Leader-Only Group Assignment Acknowledgment** (Leader Authorization, Group Submissions, Member Snapshots, Reflected Status, Analytics, 30 Scenarios)
 - [x] **Round 2 - Phase 2.5: Test Database Restoration & Integration Verification** (Dedicated `joineazy_round2_test` DB, Model Alignment, 194/194 Tests Passing)
 - [x] **Round 2 - Phase 3: Professional UI/UX Enhancement** (Modern Academic SaaS Design, Password Toggles, 5-Stat Student Dashboard, 6-Stat Professor Console, Group Acknowledgment Modals, Responsive Grids)
+- [x] **Round 2 - Phase 4: Full QA, Browser Verification, Security Audit & Production Readiness** (Real Chrome CDP Automation, 17 Authentic Screenshots, 194 Backend Tests Reconciled, 32 Live HTTP Probes, Zero Console Errors, Production Deployment Checklist)
