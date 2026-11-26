@@ -6,21 +6,14 @@ A production-quality, role-based academic management platform designed for Stude
 
 ## 🚀 Live Application & Evaluation Summary
 
-| Resource | URL / Details |
+| Resource | Details / URL |
 |---|---|
-| **Live Production Web App** | [https://joineazy-app.onrender.com](https://joineazy-app.onrender.com) |
+| **Live Web App (Current Deployment)** | [https://joineazy-app.onrender.com](https://joineazy-app.onrender.com) *(Round 1 production baseline; Round 2 deployment preflight completed)* |
 | **GitHub Repository** | [https://github.com/mayur-thakre-7526/joineazy-student-management](https://github.com/mayur-thakre-7526/joineazy-student-management) |
-| **Active Round 2 Branch** | `round2` |
+| **Round 2 Release Status** | **Production-Ready & Fully Verified** (Ready for merge to `main` and Phase 5B deployment) |
 | **Backend Test Coverage** | **202 / 202 Automated Assertions Passing (100%)** across 9 test suites |
-| **Live HTTP QA Verification**| **32 / 32 Live Integration Scenarios Passing (100%)** |
+| **Live HTTP QA Verification**| **32 / 32 Local HTTP Integration Scenarios Passing (100%)** |
 | **Visual QA Verification** | **17 Authentic Browser Screenshots** across 5 responsive breakpoints (`1440px`, `1024px`, `768px`, `375px`, `320px`) |
-
-### Evaluator Quick-Access Credentials
-| Role | Email Address | Access Level | Description |
-|---|---|---|---|
-| **Professor / Admin** | `admin@joineazy.edu` | `ADMIN` | Course creation, assignment authoring/editing/deletion, and full coursework analytics |
-| **Student (Leader)** | `student_leader@univ.edu` | `STUDENT` | Group leader with team invitation tools and leader-only assignment acknowledgment |
-| **Student (Member)** | `student_member@univ.edu` | `STUDENT` | Team member with reflected submission confirmation and course catalog enrollment |
 
 ---
 
@@ -46,7 +39,7 @@ Here is an immediate visual walkthrough of the Joineazy system running in real b
 
 | Functional Area | Round 1 (Initial Release) | Round 2 (Current Production Ready) |
 |---|---|---|
-| **Academic Courses** | None (flat, unorganized assignments) | **Full Course Management**: Professors author courses with unique codes (`LOWER(code)` index); students self-enroll via enrollment codes. |
+| **Academic Courses** | None (flat, unorganized assignments) | **Full Course Management**: Professors author courses with unique codes (`LOWER(course_code)` index); students self-enroll via enrollment codes. |
 | **Course Assignment Scope** | Global or group-targeted only | **Course-Scoped Deliverables**: Assignments bind to specific courses; students must be enrolled to access deliverables. Full backwards compatibility for legacy assignments. |
 | **Submission Types** | Individual submissions only | **Individual & Group Types**: Explicit `INDIVIDUAL` or `GROUP` submission models with dedicated workflows. |
 | **Team Submissions** | Per-student self-declaration only | **Leader-Only Acknowledgment**: Only designated group leaders (`groups.created_by`) can acknowledge team deliverables; non-leaders blocked with `HTTP 403`. |
@@ -69,12 +62,11 @@ Here is an immediate visual walkthrough of the Joineazy system running in real b
 ```bash
 git clone https://github.com/mayur-thakre-7526/joineazy-student-management.git
 cd joineazy-student-management
-git checkout round2
 ```
 
 ### 2. Start PostgreSQL via Docker Compose
 ```bash
-docker-compose up -d postgres
+docker compose up -d db
 ```
 
 ### 3. Install Dependencies & Run Database Migrations
@@ -101,8 +93,6 @@ npm --prefix server run dev
 npm --prefix client run dev
 ```
 Open `http://localhost:5173` in your browser. All API requests proxy seamlessly to `http://localhost:5000/api`.
-
----
 
 ---
 
@@ -205,7 +195,8 @@ joineazy-student-management/
         │   ├── migrate.js   # Transactional migration runner
         │   └── migrations/
         │       ├── 001_initial_schema.sql
-        │       └── 002_courses_and_submission_types.sql # Courses, enrollments, assignment extensions
+        │       ├── 002_courses_and_submission_types.sql # Courses, enrollments, assignment extensions
+        │       └── 003_group_submission_acknowledgments.sql # Leader acknowledgment and member snapshots
         ├── middleware/
         │   ├── authMiddleware.js       # JWT authentication & RBAC guards
         │   ├── csrfMiddleware.js       # CSRF token generation & dynamic origin validation
@@ -236,7 +227,10 @@ joineazy-student-management/
         │   ├── verifyPhase4.js         # Phase 4 integration test suite (34 scenarios)
         │   ├── verifyPhase5.js         # Phase 5 integration test suite (40 scenarios)
         │   ├── verifyE2EFlow.js        # Phase 6A End-to-End workflow test suite (20 scenarios)
-        │   └── verifyRound2Phase1.js   # Round 2 Phase 1 course management test suite (14 scenarios)
+        │   ├── verifyDashboardCases.js # Dashboard edge cases & regression suite (10 scenarios)
+        │   ├── verifyRound2Phase1.js   # Round 2 Phase 1 course management test suite (20 scenarios)
+        │   ├── verifyRound2Phase2.js   # Round 2 Phase 2 group acknowledgment test suite (30 scenarios)
+        │   └── verifyCrudDelete.js     # Assignment CRUD and safe deletion test suite (8 scenarios)
         ├── utils/
         │   ├── logger.js
         │   └── token.js
@@ -384,7 +378,7 @@ erDiagram
 3. **Idempotent Submission Declaration**: `submission_confirmations` enforces `CONSTRAINT uq_submission_confirmation UNIQUE (assignment_id, student_id)`. Duplicate confirmation attempts return `HTTP 409 Conflict` (or are safely ignored via `ON CONFLICT DO NOTHING`).
 4. **Targeted Assignment Join Table**: `assignment_groups` enforces `CONSTRAINT uq_assignment_group UNIQUE (assignment_id, group_id)`. Scope transitions atomically clear or recreate joins within a single transaction.
 5. **Course Enrollment Uniqueness**: `course_enrollments` enforces `CONSTRAINT uq_student_course_enrollment UNIQUE (course_id, student_id)`. A student cannot be enrolled in the same course more than once.
-6. **Case-Insensitive Course Code**: `courses` enforces unique `code` via unique index `idx_courses_code_lower UNIQUE (LOWER(code))`.
+6. **Case-Insensitive Course Code**: `courses` enforces unique `course_code` via unique index `idx_courses_course_code_lower UNIQUE (LOWER(course_code))`.
 7. **Backward-Compatible Assignment Scoping**: `assignments.course_id` is a nullable foreign key. Existing assignments without course associations remain valid (`course_id IS NULL`), maintaining complete backward compatibility.
 8. **Submission Types**: `assignments.submission_type` defaults to `'INDIVIDUAL'`, with explicit support for `'GROUP'` submissions.
 9. **Leader-Only Group Acknowledgment Uniqueness**: `group_submission_acknowledgments` enforces `CONSTRAINT uq_group_assignment_acknowledgment UNIQUE (assignment_id, group_id)`. Prevents duplicate or concurrent group acknowledgments.
@@ -480,8 +474,8 @@ erDiagram
 
 ### Architecture & Constraints
 1. **Course Creation & Ownership**:
-   - Professors (`ADMIN` role) create courses with a unique `code`, `title`, and optional `description`.
-   - Courses are indexed with `LOWER(code)` to guarantee case-insensitive uniqueness.
+   - Professors (`ADMIN` role) create courses with a unique `course_code`, `title`, and optional `description`.
+   - Courses are indexed with `LOWER(course_code)` to guarantee case-insensitive uniqueness.
    - Professors can view and manage their taught courses via `GET /api/courses/my/taught` and drill down into enrolled students and course deliverables.
 2. **Student Self-Enrollment**:
    - Students (`STUDENT` role) browse available courses and self-enroll via `POST /api/courses/:id/enroll`.
@@ -551,24 +545,24 @@ This application is architected for single-origin production deployment on **Ren
 Run the migration and admin seed scripts from your local workstation targeted to the Neon database:
 ```bash
 # PowerShell (Windows)
-$env:DATABASE_URL="postgres://username:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require"
-$env:ADMIN_EMAIL="admin@joineazy.edu"
-$env:ADMIN_PASSWORD="YourStrongAdminPassword123!"
-$env:ADMIN_NAME="Course Administrator"
+$env:DATABASE_URL="<YOUR_NEON_DATABASE_URL>?sslmode=require"
+$env:ADMIN_EMAIL="<YOUR_ADMIN_EMAIL>"
+$env:ADMIN_PASSWORD="<YOUR_SECURE_PASSWORD>"
+$env:ADMIN_NAME="<OPTIONAL_ADMIN_NAME>"
 node server/src/database/migrate.js
 node server/src/scripts/seedAdmin.js
 
 # Bash / POSIX
-DATABASE_URL="postgres://username:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require" \
-ADMIN_EMAIL="admin@joineazy.edu" \
-ADMIN_PASSWORD="YourStrongAdminPassword123!" \
-ADMIN_NAME="Course Administrator" \
+DATABASE_URL="<YOUR_NEON_DATABASE_URL>?sslmode=require" \
+ADMIN_EMAIL="<YOUR_ADMIN_EMAIL>" \
+ADMIN_PASSWORD="<YOUR_SECURE_PASSWORD>" \
+ADMIN_NAME="<OPTIONAL_ADMIN_NAME>" \
 node server/src/database/migrate.js
 
-DATABASE_URL="postgres://username:password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require" \
-ADMIN_EMAIL="admin@joineazy.edu" \
-ADMIN_PASSWORD="YourStrongAdminPassword123!" \
-ADMIN_NAME="Course Administrator" \
+DATABASE_URL="<YOUR_NEON_DATABASE_URL>?sslmode=require" \
+ADMIN_EMAIL="<YOUR_ADMIN_EMAIL>" \
+ADMIN_PASSWORD="<YOUR_SECURE_PASSWORD>" \
+ADMIN_NAME="<OPTIONAL_ADMIN_NAME>" \
 node server/src/scripts/seedAdmin.js
 ```
 
@@ -604,7 +598,7 @@ Once the service is active on Render:
 | `CSRF_SECRET` | **Yes** | 64+ char random hex string | Secret key used to cryptographically bind CSRF tokens. |
 | `CLIENT_ORIGIN` | Optional | `http://localhost:5173` (dev only) | Allowed external CORS / CSRF origin. Not required in production single-origin deployments. |
 | `ADMIN_NAME` | Optional | `Course Administrator` | Full name assigned during admin account provisioning. |
-| `ADMIN_EMAIL` | **Yes** (Seed) | `admin@joineazy.edu` | Email address for the provisioned admin account (alias: `ADMIN_SEED_EMAIL`). |
+| `ADMIN_EMAIL` | **Yes** (Seed) | `<YOUR_ADMIN_EMAIL>` | Email address for the provisioned admin account (alias: `ADMIN_SEED_EMAIL`). |
 | `ADMIN_PASSWORD` | **Yes** (Prod) | (Min 12 characters) | Secure password for admin account seeding (alias: `ADMIN_SEED_PASSWORD`). Default passwords rejected in production. |
 
 ---
@@ -791,20 +785,21 @@ All views were rendered in a live Chrome browser via Chrome DevTools Protocol (C
 
 ## 🛡️ Round 2 - Phase 4: Full-Stack QA & Production Readiness Audit
 
-### 1. Test Suite Reconciliation (194 Passing Assertions)
-Earlier nominal phase targets cited 40, 40, and 11 tests. A mathematical audit of test keys confirmed that the suite comprises exactly **194 unique executed assertions** across all 8 suites, with zero skipped, zero failed, and zero blocked:
+### 1. Test Suite Reconciliation (202 Passing Assertions across 9 Test Suites)
+The comprehensive automated regression suite comprises exactly **202 unique executed assertions** across 9 test suites (including Phase 2 through Phase 6A, Round 2 Phase 1 and 2, and the Assignment CRUD Delete suite), with zero skipped, zero failed, and zero blocked:
 
 | Suite Name | Command | Unique Scenarios | Result | Description |
 |---|---|---|---|---|
 | `test:round2:phase1` | `npm --prefix server run test:round2:phase1` | 20 | **20/20 PASS** | Course Creation, Unique Enrollment, Assignment Scoping, Submission Types, RBAC |
 | `test:round2:phase2` | `npm --prefix server run test:round2:phase2` | 30 | **30/30 PASS** | Leader-Only Acknowledgment, Reflected Member Status, Snapshots, Non-Leader 403, Analytics |
+| `test:crud:delete` | `npm --prefix server run test:crud:delete` | 8 | **8/8 PASS** | Assignment CRUD Deletion, Author Isolation (403), Non-author 403, Student 403, Cascade Purge |
 | `test:phase2` | `npm --prefix server run test:phase2` | 15 | **15/15 PASS** | User Registration, Password Hashing, JWT Cookies, CSRF, Student/Admin Roles |
 | `test:phase3` | `npm --prefix server run test:phase3` | 25 | **25/25 PASS** | Group Creation, Membership Constraints, In-App Invitations, Security Guards |
 | `test:phase4` | `npm --prefix server run test:phase4` | 34 | **34/34 PASS** | Assignment Authoring, Scoping (`ALL` vs `SPECIFIC_GROUPS`), OneDrive Validation |
 | `test:phase5` | `npm --prefix server run test:phase5` | 40 | **40/40 PASS** | Two-Step Confirmations, Late Detection, Group Progress Math, Analytics Aggregations |
 | `test:e2e` | `npm --prefix server run test:e2e` | 20 | **20/20 PASS** | Complete multi-user academic lifecycle across 2 students and 1 professor |
 | `test:dashboard` | `npm --prefix server run test:dashboard` | 10 | **10/10 PASS** | Zero-denominator edge cases, null tracking states, mixed scopes, empty arrays |
-| **Total Automated Regression** | | **194** | **194/194 PASS** | **100% Passing Regression Suite** |
+| **Total Automated Regression** | | **202** | **202/202 PASS** | **100% Passing Regression Suite** |
 
 ### 2. Live HTTP Full-Stack QA Audit (32/32 Passing Scenarios)
 A live end-to-end audit executed against the running Express application and local test database verified:
@@ -842,6 +837,6 @@ Before deploying Round 2 to production:
 - [x] **Phase 6A: QA, Security Hardening & Deployment Preparation** (Single-Origin Container, Neon SSL, Rate Limiting, Render Blueprint, 134 Tests)
 - [x] **Round 2 - Phase 1: Course Management Foundation & Enrollment** (Courses, Enrollments, Submission Types, Dashboard Integration, 20 Scenarios)
 - [x] **Round 2 - Phase 2: Leader-Only Group Assignment Acknowledgment** (Leader Authorization, Group Submissions, Member Snapshots, Reflected Status, Analytics, 30 Scenarios)
-- [x] **Round 2 - Phase 2.5: Test Database Restoration & Integration Verification** (Dedicated `joineazy_round2_test` DB, Model Alignment, 194/194 Tests Passing)
+- [x] **Round 2 - Phase 2.5: Test Database Restoration & Integration Verification** (Dedicated `joineazy_round2_test` DB, Model Alignment, 194/194 initial tests passing)
 - [x] **Round 2 - Phase 3: Professional UI/UX Enhancement** (Modern Academic SaaS Design, Password Toggles, 5-Stat Student Dashboard, 6-Stat Professor Console, Group Acknowledgment Modals, Responsive Grids)
-- [x] **Round 2 - Phase 4: Full QA, Browser Verification, Security Audit & Production Readiness** (Real Chrome CDP Automation, 17 Authentic Screenshots, 194 Backend Tests Reconciled, 32 Live HTTP Probes, Zero Console Errors, Production Deployment Checklist)
+- [x] **Round 2 - Phase 4: Full QA, Browser Verification, Security Audit & Production Readiness** (Real Chrome CDP Automation, 17 Authentic Screenshots, 202 Backend Tests Reconciled across 9 Suites, 32 Live HTTP Probes, Zero Console Errors, Production Deployment Checklist)
