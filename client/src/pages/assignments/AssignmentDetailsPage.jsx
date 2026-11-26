@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   X,
   AlertTriangle,
+  User,
+  BookOpen,
 } from 'lucide-react';
 
 export default function AssignmentDetailsPage() {
@@ -167,6 +169,37 @@ export default function AssignmentDetailsPage() {
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
+            {assignment.course_code && (
+              <Link
+                to={`/courses/${assignment.course_id}`}
+                className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 flex items-center transition-colors"
+                title="View Course"
+              >
+                <BookOpen className="w-3.5 h-3.5 mr-1" />
+                {assignment.course_code}
+              </Link>
+            )}
+
+            <span
+              className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border ${
+                assignment.submission_type === 'GROUP'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-blue-50 text-blue-700 border-blue-200'
+              }`}
+            >
+              {assignment.submission_type === 'GROUP' ? (
+                <>
+                  <Users className="w-3 h-3 mr-1" />
+                  Group Submission
+                </>
+              ) : (
+                <>
+                  <User className="w-3 h-3 mr-1" />
+                  Individual Submission
+                </>
+              )}
+            </span>
+
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border ${
                 assignment.scope === 'ALL'

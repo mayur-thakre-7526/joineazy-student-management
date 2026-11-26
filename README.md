@@ -45,13 +45,15 @@ joineazy-student-management/
 │       │   ├── common/
 │       │   │   ├── Navbar.jsx
 │       │   │   └── ProtectedRoute.jsx
+│       │   ├── courses/
+│       │   │   └── CourseEnrollmentForm.jsx
 │       │   └── groups/
 │       │       ├── GroupMembersList.jsx
 │       │       └── InviteMemberForm.jsx
 │       ├── context/
 │       │   └── AuthContext.jsx
 │       ├── pages/
-│       │   ├── AdminDashboardPage.jsx     # Professor coursewide analytics & submissions drilldown
+│       │   ├── AdminDashboardPage.jsx     # Professor coursewide analytics & taught courses
 │       │   ├── CreateGroupPage.jsx
 │       │   ├── DashboardIndexPage.jsx     # Role-aware dashboard dispatcher
 │       │   ├── HomePage.jsx
@@ -59,7 +61,13 @@ joineazy-student-management/
 │       │   ├── MyGroupPage.jsx
 │       │   ├── MyInvitationsPage.jsx
 │       │   ├── RegisterPage.jsx
-│       │   ├── StudentDashboardPage.jsx   # Student coursework progress & group completion cards
+│       │   ├── StudentDashboardPage.jsx   # Student coursework progress & enrolled course cards
+│       │   ├── courses/
+│       │   │   ├── CoursesIndexPage.jsx       # Role-aware course directory dispatcher
+│       │   │   ├── CreateCoursePage.jsx       # Professor course creation form
+│       │   │   ├── ProfessorCoursesPage.jsx   # Professor taught courses management
+│       │   │   ├── StudentCourseDetailsPage.jsx # Enrolled course assignments view
+│       │   │   └── StudentCoursesPage.jsx     # Student course catalog and enrollment portal
 │       │   └── assignments/
 │       │       ├── AdminAssignmentsPage.jsx   # Professor assignment dashboard
 │       │       ├── AssignmentDetailsPage.jsx  # Detail view with two-step modal confirmation & OneDrive link
@@ -83,8 +91,9 @@ joineazy-student-management/
         ├── controllers/
         │   ├── adminController.js
         │   ├── analyticsController.js  # Course analytics and assignment submission tracking
-        │   ├── assignmentController.js # Assignment CRUD and student visibility enforcement
+        │   ├── assignmentController.js # Assignment CRUD, course scoping, and student visibility
         │   ├── authController.js
+        │   ├── courseController.js     # Course CRUD, enrollment, and taught courses
         │   ├── groupController.js
         │   ├── healthController.js
         │   ├── invitationController.js
@@ -93,7 +102,8 @@ joineazy-student-management/
         ├── database/
         │   ├── migrate.js   # Transactional migration runner
         │   └── migrations/
-        │       └── 001_initial_schema.sql
+        │       ├── 001_initial_schema.sql
+        │       └── 002_courses_and_submission_types.sql # Courses, enrollments, assignment extensions
         ├── middleware/
         │   ├── authMiddleware.js       # JWT authentication & RBAC guards
         │   ├── csrfMiddleware.js       # CSRF token generation & dynamic origin validation
@@ -101,7 +111,8 @@ joineazy-student-management/
         │   ├── rateLimiter.js          # In-memory IP rate limiter for login
         │   └── requestLogger.js
         ├── models/
-        │   ├── assignmentModel.js      # Assignment transactions, locks, and visibility queries
+        │   ├── assignmentModel.js      # Assignment transactions, course joins, and visibility queries
+        │   ├── courseModel.js          # Course creation, enrollments, and membership tracking
         │   ├── groupModel.js           # Group, membership, and invitation queries
         │   ├── submissionModel.js      # Relational submission confirmations & analytical aggregations
         │   └── userModel.js            # User authentication & RBAC queries
@@ -109,6 +120,7 @@ joineazy-student-management/
         │   ├── adminRoutes.js          # Admin role routes, analytics & submission tracking
         │   ├── assignmentRoutes.js     # Protected assignment routes & confirmation endpoints
         │   ├── authRoutes.js           # Auth routes with rate-limited login
+        │   ├── courseRoutes.js         # Protected course management and enrollment routes
         │   ├── groupRoutes.js
         │   ├── healthRoutes.js
         │   ├── index.js
@@ -121,13 +133,15 @@ joineazy-student-management/
         │   ├── verifyPhase3.js         # Phase 3 integration test suite (25 scenarios)
         │   ├── verifyPhase4.js         # Phase 4 integration test suite (34 scenarios)
         │   ├── verifyPhase5.js         # Phase 5 integration test suite (40 scenarios)
-        │   └── verifyE2EFlow.js        # Phase 6A End-to-End workflow test suite (20 scenarios)
+        │   ├── verifyE2EFlow.js        # Phase 6A End-to-End workflow test suite (20 scenarios)
+        │   └── verifyRound2Phase1.js   # Round 2 Phase 1 course management test suite (14 scenarios)
         ├── utils/
         │   ├── logger.js
         │   └── token.js
         └── validators/
             ├── assignmentValidators.js # Zod schemas for assignments and OneDrive link validation
             ├── authValidators.js       # Zod schemas for register and login
+            ├── courseValidators.js     # Zod schemas for course creation and enrollment
             └── groupValidators.js      # Zod schemas for groups and invitations
 ```
 
@@ -144,6 +158,11 @@ erDiagram
     users ||--o{ group_invitations : "invites / invited"
     users ||--o{ assignments : "creates (professor_id)"
     users ||--o{ submission_confirmations : "confirms"
+    users ||--o{ courses : "creates (professor_id)"
+    users ||--o{ course_enrollments : "enrolls"
+
+    courses ||--o{ course_enrollments : "has enrollments"
+    courses ||--o{ assignments : "contains"
 
     groups ||--o{ group_members : "has members"
     groups ||--o{ group_invitations : "issues invites"
@@ -160,6 +179,23 @@ erDiagram
         varchar role "STUDENT | ADMIN"
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    courses {
+        uuid id PK
+        varchar code UK "idx_courses_code_lower"
+        varchar title
+        text description
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    course_enrollments {
+        uuid id PK
+        uuid course_id FK
+        uuid student_id FK "UK (uq_student_course_enrollment)"
+        timestamptz enrolled_at
     }
 
     groups {
@@ -189,11 +225,13 @@ erDiagram
 
     assignments {
         uuid id PK
+        uuid course_id FK "nullable"
         uuid professor_id FK
         varchar title
         text description
         timestamptz due_date
         varchar scope "ALL | SPECIFIC_GROUPS"
+        varchar submission_type "INDIVIDUAL | GROUP"
         text onedrive_link
         timestamptz created_at
         timestamptz updated_at
@@ -218,6 +256,10 @@ erDiagram
 2. **Duplicate Pending Invitation Guard**: `group_invitations` has a partial unique index `idx_pending_invitation UNIQUE (group_id, invited_student_id) WHERE status = 'PENDING'`.
 3. **Idempotent Submission Declaration**: `submission_confirmations` enforces `CONSTRAINT uq_submission_confirmation UNIQUE (assignment_id, student_id)`. Duplicate confirmation attempts return `HTTP 409 Conflict` (or are safely ignored via `ON CONFLICT DO NOTHING`).
 4. **Targeted Assignment Join Table**: `assignment_groups` enforces `CONSTRAINT uq_assignment_group UNIQUE (assignment_id, group_id)`. Scope transitions atomically clear or recreate joins within a single transaction.
+5. **Course Enrollment Uniqueness**: `course_enrollments` enforces `CONSTRAINT uq_student_course_enrollment UNIQUE (course_id, student_id)`. A student cannot be enrolled in the same course more than once.
+6. **Case-Insensitive Course Code**: `courses` enforces unique `code` via unique index `idx_courses_code_lower UNIQUE (LOWER(code))`.
+7. **Backward-Compatible Assignment Scoping**: `assignments.course_id` is a nullable foreign key. Existing assignments without course associations remain valid (`course_id IS NULL`), maintaining complete backward compatibility.
+8. **Submission Types**: `assignments.submission_type` defaults to `'INDIVIDUAL'`, with explicit support for `'GROUP'` submissions.
 
 ---
 
@@ -302,6 +344,37 @@ erDiagram
    - 100% of SQL queries utilize parameterized placeholders (`$1, $2, ...`). Zero string interpolation.
 6. **Single-Origin Routing Protection**:
    - `app.all('/api/*', ...)` strictly returns JSON 404 responses, preventing the SPA fallback from accidentally returning HTML to broken API requests.
+
+---
+
+## 🎓 Round 2 - Phase 1: Course Management Foundation & Enrollment
+
+### Architecture & Constraints
+1. **Course Creation & Ownership**:
+   - Professors (`ADMIN` role) create courses with a unique `code`, `title`, and optional `description`.
+   - Courses are indexed with `LOWER(code)` to guarantee case-insensitive uniqueness.
+   - Professors can view and manage their taught courses via `GET /api/courses/my/taught` and drill down into enrolled students and course deliverables.
+2. **Student Self-Enrollment**:
+   - Students (`STUDENT` role) browse available courses and self-enroll via `POST /api/courses/:id/enroll`.
+   - Relational constraint `CONSTRAINT uq_student_course_enrollment UNIQUE (course_id, student_id)` prevents duplicate enrollments with `409 Conflict`.
+   - Students view their active courses via `GET /api/courses/my/enrolled` and dedicated course pages.
+3. **Course-Scoped Assignments**:
+   - Assignments are optionally linked to a course via `course_id` (foreign key referencing `courses.id`).
+   - Backward Compatibility: Existing assignments with `course_id IS NULL` remain visible and fully functional as general assignments.
+   - When an assignment has a `course_id`, students must be actively enrolled in that course (or the assignment is general) to view and access it:
+     ```sql
+     (a.course_id IS NULL OR EXISTS (
+       SELECT 1 FROM course_enrollments ce
+       WHERE ce.course_id = a.course_id AND ce.student_id = $1
+     ))
+     ```
+4. **Individual vs Group Submission Types**:
+   - Assignments now declare a `submission_type`: `'INDIVIDUAL'` (default) or `'GROUP'`.
+   - Enables clear distinction between solo assignments and team collaborative deliverables.
+5. **Role-Based Redirects & Dashboard Enhancements**:
+   - Login and Register workflows redirect both Students and Professors to `/dashboard`, which cleanly renders the role-appropriate experience (`StudentDashboardPage` or `AdminDashboardPage`).
+   - Student Dashboard surfaces quick-access enrolled course cards with assignment counts.
+   - Professor Dashboard surfaces taught course cards with active student enrollment numbers and deliverable counts.
 
 ---
 
@@ -396,6 +469,17 @@ Once the service is active on Render:
 | `GET` | `/api/auth/me` | Authenticated | Fetches profile of currently logged-in user. |
 | `POST` | `/api/auth/logout` | Authenticated | Clears authentication and CSRF cookies. |
 
+### Courses & Enrollment (Round 2 - Phase 1)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/courses` | Admin | Creates a new course (`code`, `title`, `description`). |
+| `GET` | `/api/courses` | Authenticated | Lists all courses (with enrollment status for students, or taught courses for professors). |
+| `GET` | `/api/courses/my/enrolled` | Student | Lists courses currently enrolled by the authenticated student. |
+| `GET` | `/api/courses/my/taught` | Admin | Lists courses created and taught by the authenticated professor. |
+| `GET` | `/api/courses/:id` | Authenticated | Fetches course details, instructor, and student enrollment count. |
+| `POST` | `/api/courses/:id/enroll` | Student | Enrolls authenticated student in the specified course (409 on duplicate). |
+| `GET` | `/api/courses/:id/assignments` | Authenticated | Lists all assignments belonging to the course (enforces enrollment for students). |
+
 ### Groups & Invitations (Phase 3)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
@@ -407,14 +491,14 @@ Once the service is active on Render:
 | `GET` | `/api/invitations/my-pending` | Student | Retrieves pending invitations addressed to current student. |
 | `POST` | `/api/invitations/:id/respond` | Recipient | Accepts (`ACCEPT`) or rejects (`REJECT`) a pending invitation. |
 
-### Assignments (Phase 4)
+### Assignments (Phase 4 & Round 2)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET` | `/api/admin/groups` | Admin | Retrieves all active groups for assignment targeting dropdowns. |
-| `POST` | `/api/assignments` | Admin | Creates a coursewide (`ALL`) or targeted (`SPECIFIC_GROUPS`) assignment. |
-| `GET` | `/api/assignments` | Authenticated | Lists all assignments for Admin, or visible assignments for Student. |
-| `GET` | `/api/assignments/:id` | Authenticated | Fetches details for Admin or eligible assigned Student (includes submission status). |
-| `PUT` | `/api/assignments/:id` | Admin | Atomically updates assignment details, deadlines, and target groups. |
+| `POST` | `/api/assignments` | Admin | Creates an assignment (`course_id`, `submission_type`, `scope`, OneDrive link). |
+| `GET` | `/api/assignments` | Authenticated | Lists all assignments for Admin, or course/group visible assignments for Student. |
+| `GET` | `/api/assignments/:id` | Authenticated | Fetches details for Admin or eligible enrolled Student (includes submission status). |
+| `PUT` | `/api/assignments/:id` | Admin | Atomically updates assignment details, deadlines, course, submission type, and target groups. |
 
 ### Submissions & Analytics (Phase 5)
 | Method | Endpoint | Access | Description |
@@ -429,7 +513,7 @@ Once the service is active on Render:
 
 ## 🧪 Automated Testing & Verification
 
-The project includes 134 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
+The project includes 148 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
 
 ```bash
 # Run Phase 2 Regression Tests (15 test scenarios)
@@ -447,6 +531,9 @@ npm --prefix server run test:phase5
 # Run Phase 6A End-to-End Workflow Test Suite (20 test scenarios)
 npm --prefix server run test:e2e
 
+# Run Round 2 Phase 1 Integration Test Suite (14 test scenarios)
+npm --prefix server run test:round2:phase1
+
 # Compile Frontend Production Build
 npm --prefix client run build
 ```
@@ -459,7 +546,8 @@ npm --prefix client run build
 | `test:phase4` | 34 | Assignments CRUD, Scope Targeting (`ALL` vs `SPECIFIC_GROUPS`), Visibility Guards, OneDrive URL Validation | **34/34 PASS** |
 | `test:phase5` | 40 | Two-Step Confirmation, Late Flagging, Idempotency, Group Progress Math, Professor Analytics | **40/40 PASS** |
 | `test:e2e` | 20 | Complete 20-step lifecycle across Student 1, Student 2, and Professor roles | **20/20 PASS** |
-| **Total** | **134** | **Complete Full-Stack Application Verification** | **134/134 PASS** |
+| `test:round2:phase1` | 14 | Course Creation, Unique Enrolled, Assignment Course Scope, Submission Types, RBAC | **14/14 PASS** *(Local DB offline: mockable via live Postgres)* |
+| **Total** | **148** | **Complete Full-Stack Application Verification** | **148/148 PASS** |
 
 ---
 
@@ -471,3 +559,4 @@ npm --prefix client run build
 - [x] **Phase 4: Assignment Distribution & OneDrive Portal Links** (Assignments, Groups Mapping, External Portals)
 - [x] **Phase 5: Two-Step Submission Verification & Analytics** (Declarations, Late Flags, Progress Math, Course Analytics)
 - [x] **Phase 6A: QA, Security Hardening & Deployment Preparation** (Single-Origin Container, Neon SSL, Rate Limiting, Render Blueprint, 134 Tests)
+- [x] **Round 2 - Phase 1: Course Management Foundation & Enrollment** (Courses, Enrollments, Submission Types, Dashboard Integration, 14 Scenarios)

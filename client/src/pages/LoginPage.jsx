@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Lock, Mail, Loader2, ArrowRight } from 'lucide-react';
@@ -9,24 +9,46 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const redirectPath = location.state?.from?.pathname || '/';
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const rawRedirect = location.state?.from?.pathname;
+  // If target is home or unspecified, send to role-based dashboard
+  const redirectPath = rawRedirect && rawRedirect !== '/' ? rawRedirect : '/dashboard';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!email || !password) {
-      setErrorMsg('Please enter both email and password.');
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setErrorMsg('Please enter your institutional email address.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMsg('Please enter a valid email address (e.g. name@university.edu).');
+      return;
+    }
+
+    if (!password) {
+      setErrorMsg('Please enter your account password.');
       return;
     }
 
     try {
       setSubmitting(true);
-      await login({ email, password });
+      const user = await login({ email: trimmedEmail, password });
+      // Role-based redirect to dashboard
       navigate(redirectPath, { replace: true });
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please verify your credentials.');
@@ -46,24 +68,24 @@ export default function LoginPage() {
             Sign In to Joineazy
           </h2>
           <p className="mt-2 text-center text-sm text-slate-500">
-            Access your student groups, submissions, or professor admin console.
+            Access your courses, project groups, and assignment submissions.
           </p>
         </div>
 
         {errorMsg && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-start space-x-3 text-sm">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-start space-x-3 text-sm animate-in fade-in duration-150">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Authentication Failed</p>
+              <p className="font-semibold">Authentication Issue</p>
               <p className="mt-0.5">{errorMsg}</p>
             </div>
           </div>
         )}
 
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
           <div>
             <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
-              Email Address
+              Institutional Email
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -72,10 +94,11 @@ export default function LoginPage() {
               <input
                 type="email"
                 required
+                disabled={submitting}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="student@joineazy.edu"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:opacity-50 transition-all"
               />
             </div>
           </div>
@@ -91,10 +114,11 @@ export default function LoginPage() {
               <input
                 type="password"
                 required
+                disabled={submitting}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:opacity-50 transition-all"
               />
             </div>
           </div>
@@ -111,7 +135,7 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                Sign In
+                Sign In to Dashboard
                 <ArrowRight className="w-4 h-4 ml-2" />
               </>
             )}

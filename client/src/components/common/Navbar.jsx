@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Menu,
   X,
+  BookOpen,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -44,6 +45,7 @@ export default function Navbar() {
 
   const isActive = (path) => {
     if (path === '/dashboard') return location.pathname === '/dashboard';
+    if (path === '/courses') return location.pathname.startsWith('/courses');
     if (path === '/assignments') return location.pathname === '/assignments';
     if (path === '/assignments/create') return location.pathname === '/assignments/create';
     if (path === '/group') return location.pathname === '/group' || location.pathname.startsWith('/groups');
@@ -86,6 +88,10 @@ export default function Navbar() {
                 <LayoutDashboard className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
                 Dashboard
               </Link>
+              <Link to="/courses" className={desktopLinkClass('/courses')}>
+                <BookOpen className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                Courses
+              </Link>
               <Link to="/assignments" className={desktopLinkClass('/assignments')}>
                 <FileText className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
                 Assignments
@@ -112,6 +118,10 @@ export default function Navbar() {
               <Link to="/dashboard" className={desktopLinkClass('/dashboard')}>
                 <LayoutDashboard className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
                 Dashboard
+              </Link>
+              <Link to="/courses" className={desktopLinkClass('/courses')}>
+                <BookOpen className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                Courses
               </Link>
               <Link to="/assignments" className={desktopLinkClass('/assignments')}>
                 <FileText className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
@@ -243,6 +253,12 @@ export default function Navbar() {
                   Dashboard
                 </span>
               </Link>
+              <Link to="/courses" className={mobileLinkClass('/courses')}>
+                <span className="flex items-center">
+                  <BookOpen className="w-4 h-4 mr-2 text-slate-500" />
+                  Courses
+                </span>
+              </Link>
               <Link to="/assignments" className={mobileLinkClass('/assignments')}>
                 <span className="flex items-center">
                   <FileText className="w-4 h-4 mr-2 text-slate-500" />
@@ -276,6 +292,12 @@ export default function Navbar() {
                 <span className="flex items-center">
                   <LayoutDashboard className="w-4 h-4 mr-2 text-slate-500" />
                   Dashboard
+                </span>
+              </Link>
+              <Link to="/courses" className={mobileLinkClass('/courses')}>
+                <span className="flex items-center">
+                  <BookOpen className="w-4 h-4 mr-2 text-slate-500" />
+                  Courses
                 </span>
               </Link>
               <Link to="/assignments" className={mobileLinkClass('/assignments')}>

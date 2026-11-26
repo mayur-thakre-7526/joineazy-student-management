@@ -212,3 +212,43 @@ export const analyticsApi = {
     method: 'GET',
   }),
 };
+
+// Course Management & Enrollment API (Round 2)
+export const courseApi = {
+  // List courses (Role-aware)
+  getCourses: () => request('/courses', {
+    method: 'GET',
+  }),
+
+  // Get user's enrolled (student) or taught (professor) courses
+  getMyCourses: () => request('/courses/my', {
+    method: 'GET',
+  }),
+
+  // Get single course details
+  getCourseById: (id) => request(`/courses/${id}`, {
+    method: 'GET',
+  }),
+
+  // Get assignments belonging to a course
+  getCourseAssignments: (courseId) => request(`/courses/${courseId}/assignments`, {
+    method: 'GET',
+  }),
+
+  // Create course (ADMIN / Professor only)
+  createCourse: (payload) => request('/courses', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+
+  // Self-enroll by course code (STUDENT only)
+  enrollByCode: (courseCode) => request('/courses/enroll', {
+    method: 'POST',
+    body: JSON.stringify({ course_code: courseCode }),
+  }),
+
+  // Enroll in course by ID (STUDENT only)
+  enrollById: (courseId) => request(`/courses/${courseId}/enroll`, {
+    method: 'POST',
+  }),
+};

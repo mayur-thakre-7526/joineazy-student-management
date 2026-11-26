@@ -6,12 +6,14 @@ import {
   PlusCircle,
   Calendar,
   Users,
+  User,
   ExternalLink,
   Edit,
   Loader2,
   RefreshCw,
   AlertCircle,
   ArrowRight,
+  BookOpen,
 } from 'lucide-react';
 
 export default function AdminAssignmentsPage() {
@@ -114,6 +116,32 @@ export default function AdminAssignmentsPage() {
               >
                 <div className="space-y-2 flex-grow max-w-2xl">
                   <div className="flex flex-wrap items-center gap-2">
+                    {assignment.course_code && (
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                        {assignment.course_code}
+                      </span>
+                    )}
+
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${
+                        assignment.submission_type === 'GROUP'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}
+                    >
+                      {assignment.submission_type === 'GROUP' ? (
+                        <>
+                          <Users className="w-3 h-3 mr-1" />
+                          Group
+                        </>
+                      ) : (
+                        <>
+                          <User className="w-3 h-3 mr-1" />
+                          Individual
+                        </>
+                      )}
+                    </span>
+
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border ${
                         assignment.scope === 'ALL'

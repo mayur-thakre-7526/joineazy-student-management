@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Lock, Mail, User, Shield, Loader2, ArrowRight } from 'lucide-react';
@@ -10,12 +10,32 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    const trimmedName = fullName.trim();
+    if (trimmedName.length < 2) {
+      setErrorMsg('Full name must be at least 2 characters long.');
+      return;
+    }
+
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMsg('Please enter a valid institutional email address.');
+      return;
+    }
 
     if (password.length < 6) {
       setErrorMsg('Password must be at least 6 characters long.');
@@ -25,11 +45,11 @@ export default function RegisterPage() {
     try {
       setSubmitting(true);
       await register({
-        full_name: fullName,
-        email,
+        full_name: trimmedName,
+        email: trimmedEmail,
         password,
       });
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setErrorMsg(err.message || 'Registration failed.');
     } finally {
@@ -48,7 +68,7 @@ export default function RegisterPage() {
             Create Student Account
           </h2>
           <p className="mt-2 text-center text-sm text-slate-500">
-            Join groups, view professor assignments, and submit confirmations.
+            Enroll in courses, join student groups, and track coursework deliverables.
           </p>
         </div>
 
@@ -56,12 +76,12 @@ export default function RegisterPage() {
         <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs flex items-start space-x-2.5">
           <Shield className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
           <p>
-            <strong className="font-semibold">Student Role Only:</strong> Public registration only provisions Student accounts. Professor/Admin access requires administrative institutional authorization.
+            <strong className="font-semibold">Student Portal:</strong> Public registration automatically provisions an Enrolled Student account. Professor access requires administrative credentials.
           </p>
         </div>
 
         {errorMsg && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-start space-x-3 text-sm">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-start space-x-3 text-sm animate-in fade-in duration-150">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">Registration Issue</p>
@@ -70,7 +90,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
           <div>
             <label className="block text-xs font-semibold uppercase text-slate-600 mb-1">
               Full Name
@@ -82,10 +102,11 @@ export default function RegisterPage() {
               <input
                 type="text"
                 required
+                disabled={submitting}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:opacity-50 transition-all"
               />
             </div>
           </div>
@@ -101,10 +122,11 @@ export default function RegisterPage() {
               <input
                 type="email"
                 required
+                disabled={submitting}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="jane.doe@university.edu"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:opacity-50 transition-all"
               />
             </div>
           </div>
@@ -120,11 +142,12 @@ export default function RegisterPage() {
               <input
                 type="password"
                 required
+                disabled={submitting}
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimum 6 characters"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:opacity-50 transition-all"
               />
             </div>
           </div>

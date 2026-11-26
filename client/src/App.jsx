@@ -14,6 +14,9 @@ import CreateAssignmentPage from './pages/assignments/CreateAssignmentPage';
 import EditAssignmentPage from './pages/assignments/EditAssignmentPage';
 import AssignmentDetailsPage from './pages/assignments/AssignmentDetailsPage';
 import DashboardIndexPage from './pages/DashboardIndexPage';
+import CoursesIndexPage from './pages/courses/CoursesIndexPage';
+import CreateCoursePage from './pages/courses/CreateCoursePage';
+import StudentCourseDetailsPage from './pages/courses/StudentCourseDetailsPage';
 
 function App() {
   return (
@@ -35,6 +38,32 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <DashboardIndexPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Course Routes (Students & Admins - Round 2) */}
+                <Route
+                  path="/courses"
+                  element={
+                    <ProtectedRoute>
+                      <CoursesIndexPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/courses/create"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <CreateCoursePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/courses/:id"
+                  element={
+                    <ProtectedRoute>
+                      <StudentCourseDetailsPage />
                     </ProtectedRoute>
                   }
                 />

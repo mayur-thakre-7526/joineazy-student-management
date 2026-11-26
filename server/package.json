@@ -14,7 +14,8 @@
     "test:phase4": "node src/scripts/verifyPhase4.js",
     "test:phase5": "node src/scripts/verifyPhase5.js",
     "test:e2e": "node src/scripts/verifyE2EFlow.js",
-    "test:dashboard": "node src/scripts/verifyDashboardCases.js"
+    "test:dashboard": "node src/scripts/verifyDashboardCases.js",
+    "test:round2:phase1": "node src/scripts/verifyRound2Phase1.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

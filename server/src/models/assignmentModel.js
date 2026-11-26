@@ -2,7 +2,7 @@ import { pool } from '../config/db.js';
 
 export const AssignmentModel = {
   /**
-   * Create an assignment with optional group targeting inside an atomic transaction
+   * Create an assignment with optional course mapping and group targeting inside an atomic transaction
    */
   async createAssignment({
     professorId,
@@ -11,11 +11,25 @@ export const AssignmentModel = {
     dueDate,
     onedriveLink,
     scope,
+    courseId = null,
+    submissionType = 'INDIVIDUAL',
     groupIds = [],
   }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      // Verify course exists if courseId is provided
+      if (courseId) {
+        const checkCourseQuery = `SELECT id FROM courses WHERE id = $1;`;
+        const { rows: courseRows } = await client.query(checkCourseQuery, [courseId]);
+        if (courseRows.length === 0) {
+          await client.query('ROLLBACK');
+          const err = new Error('Specified course does not exist.');
+          err.statusCode = 400;
+          throw err;
+        }
+      }
 
       const uniqueGroupIds = Array.from(new Set(groupIds));
 
@@ -36,9 +50,9 @@ export const AssignmentModel = {
 
       // 1. Insert Assignment
       const insertAssignmentQuery = `
-        INSERT INTO assignments (professor_id, title, description, due_date, onedrive_link, scope)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, professor_id, title, description, due_date, onedrive_link, scope, created_at, updated_at;
+        INSERT INTO assignments (professor_id, title, description, due_date, onedrive_link, scope, course_id, submission_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, professor_id, title, description, due_date, onedrive_link, scope, course_id, submission_type, created_at, updated_at;
       `;
       const { rows: assignmentRows } = await client.query(insertAssignmentQuery, [
         professorId,
@@ -47,6 +61,8 @@ export const AssignmentModel = {
         dueDate,
         onedriveLink.trim(),
         scope,
+        courseId || null,
+        submissionType || 'INDIVIDUAL',
       ]);
       const assignment = assignmentRows[0];
 
@@ -81,13 +97,16 @@ export const AssignmentModel = {
   async findAllForAdmin() {
     const query = `
       SELECT a.id, a.professor_id, a.title, a.description, a.due_date, a.onedrive_link, a.scope,
+             a.course_id, a.submission_type,
+             c.title as course_title, c.course_code,
              a.created_at, a.updated_at,
              u.full_name as professor_name, u.email as professor_email,
              COUNT(ag.group_id)::int as assigned_group_count
       FROM assignments a
       JOIN users u ON a.professor_id = u.id
+      LEFT JOIN courses c ON a.course_id = c.id
       LEFT JOIN assignment_groups ag ON a.id = ag.assignment_id
-      GROUP BY a.id, u.full_name, u.email
+      GROUP BY a.id, c.title, c.course_code, u.full_name, u.email
       ORDER BY a.due_date ASC;
     `;
     const { rows } = await pool.query(query);
@@ -96,6 +115,8 @@ export const AssignmentModel = {
 
   /**
    * List eligible assignments for Student view
+   * Respects course enrollment for course-scoped assignments,
+   * while preserving legacy Round 1 visibility for unassigned courses (course_id IS NULL)
    */
   async findAllForStudent(studentId) {
     // 1. Get student's current active group ID if any
@@ -105,46 +126,43 @@ export const AssignmentModel = {
     const { rows: groupRows } = await pool.query(groupQuery, [studentId]);
     const currentGroupId = groupRows.length > 0 ? groupRows[0].group_id : null;
 
-    if (currentGroupId) {
-      // Grouped student sees scope ALL + scope SPECIFIC_GROUPS targeting their group
-      const query = `
-        SELECT DISTINCT a.id, a.professor_id, a.title, a.description, a.due_date,
-               a.onedrive_link, a.scope, a.created_at, a.updated_at,
-               u.full_name as professor_name, u.email as professor_email
-        FROM assignments a
-        JOIN users u ON a.professor_id = u.id
-        LEFT JOIN assignment_groups ag ON a.id = ag.assignment_id
-        WHERE a.scope = 'ALL' OR (a.scope = 'SPECIFIC_GROUPS' AND ag.group_id = $1)
-        ORDER BY a.due_date ASC;
-      `;
-      const { rows } = await pool.query(query, [currentGroupId]);
-      return rows;
-    } else {
-      // Ungrouped student sees only scope ALL assignments
-      const query = `
-        SELECT a.id, a.professor_id, a.title, a.description, a.due_date,
-               a.onedrive_link, a.scope, a.created_at, a.updated_at,
-               u.full_name as professor_name, u.email as professor_email
-        FROM assignments a
-        JOIN users u ON a.professor_id = u.id
-        WHERE a.scope = 'ALL'
-        ORDER BY a.due_date ASC;
-      `;
-      const { rows } = await pool.query(query);
-      return rows;
-    }
-  },
-
-  /**
-   * Find single assignment by ID with creator details
-   */
-  async findById(assignmentId) {
     const query = `
-      SELECT a.id, a.professor_id, a.title, a.description, a.due_date, a.onedrive_link, a.scope,
+      SELECT DISTINCT a.id, a.professor_id, a.title, a.description, a.due_date,
+             a.onedrive_link, a.scope, a.course_id, a.submission_type,
+             c.title as course_title, c.course_code,
              a.created_at, a.updated_at,
              u.full_name as professor_name, u.email as professor_email
       FROM assignments a
       JOIN users u ON a.professor_id = u.id
+      LEFT JOIN courses c ON a.course_id = c.id
+      LEFT JOIN assignment_groups ag ON a.id = ag.assignment_id
+      WHERE
+        -- If course_id is set, student must be enrolled in the course. Legacy NULL courses are open to all.
+        (a.course_id IS NULL OR EXISTS (
+          SELECT 1 FROM course_enrollments ce WHERE ce.course_id = a.course_id AND ce.student_id = $1
+        ))
+        AND
+        -- Target scope check
+        (a.scope = 'ALL' OR (a.scope = 'SPECIFIC_GROUPS' AND ag.group_id = $2))
+      ORDER BY a.due_date ASC;
+    `;
+    const { rows } = await pool.query(query, [studentId, currentGroupId]);
+    return rows;
+  },
+
+  /**
+   * Find single assignment by ID with creator details and course info
+   */
+  async findById(assignmentId) {
+    const query = `
+      SELECT a.id, a.professor_id, a.title, a.description, a.due_date, a.onedrive_link, a.scope,
+             a.course_id, a.submission_type,
+             c.title as course_title, c.course_code,
+             a.created_at, a.updated_at,
+             u.full_name as professor_name, u.email as professor_email
+      FROM assignments a
+      JOIN users u ON a.professor_id = u.id
+      LEFT JOIN courses c ON a.course_id = c.id
       WHERE a.id = $1
       LIMIT 1;
     `;
@@ -168,24 +186,37 @@ export const AssignmentModel = {
   },
 
   /**
-   * Check if a student is eligible to view an assignment
+   * Check if a student is eligible to view/submit an assignment
+   * (Enforces course enrollment for course-scoped assignments)
    */
   async isStudentEligible(assignmentId, studentId) {
     const query = `
-      SELECT a.scope,
+      SELECT a.scope, a.course_id,
              EXISTS(
-               SELECT 1 
+               SELECT 1
                FROM assignment_groups ag
                JOIN group_members gm ON ag.group_id = gm.group_id
                WHERE ag.assignment_id = a.id AND gm.student_id = $2
-             ) as is_group_assigned
+             ) as is_group_assigned,
+             CASE
+               WHEN a.course_id IS NULL THEN true
+               ELSE EXISTS (
+                 SELECT 1
+                 FROM course_enrollments ce
+                 WHERE ce.course_id = a.course_id AND ce.student_id = $2
+               )
+             END as is_course_enrolled
       FROM assignments a
       WHERE a.id = $1;
     `;
     const { rows } = await pool.query(query, [assignmentId, studentId]);
     if (rows.length === 0) return false;
 
-    const { scope, is_group_assigned } = rows[0];
+    const { scope, is_group_assigned, is_course_enrolled } = rows[0];
+
+    // If student is not enrolled in the assignment's course, they are not eligible
+    if (!is_course_enrolled) return false;
+
     if (scope === 'ALL') return true;
     return is_group_assigned === true;
   },
@@ -201,6 +232,8 @@ export const AssignmentModel = {
     dueDate,
     onedriveLink,
     scope,
+    courseId = null,
+    submissionType = 'INDIVIDUAL',
     groupIds = [],
   }) {
     const client = await pool.connect();
@@ -229,6 +262,18 @@ export const AssignmentModel = {
         throw err;
       }
 
+      // Verify course exists if courseId is provided
+      if (courseId) {
+        const checkCourseQuery = `SELECT id FROM courses WHERE id = $1;`;
+        const { rows: courseRows } = await client.query(checkCourseQuery, [courseId]);
+        if (courseRows.length === 0) {
+          await client.query('ROLLBACK');
+          const err = new Error('Specified course does not exist.');
+          err.statusCode = 400;
+          throw err;
+        }
+      }
+
       const uniqueGroupIds = Array.from(new Set(groupIds));
 
       // Verify groups if SPECIFIC_GROUPS
@@ -249,9 +294,10 @@ export const AssignmentModel = {
       // 2. Update Assignment
       const updateQuery = `
         UPDATE assignments
-        SET title = $1, description = $2, due_date = $3, onedrive_link = $4, scope = $5, updated_at = NOW()
-        WHERE id = $6
-        RETURNING id, professor_id, title, description, due_date, onedrive_link, scope, created_at, updated_at;
+        SET title = $1, description = $2, due_date = $3, onedrive_link = $4, scope = $5,
+            course_id = $6, submission_type = $7, updated_at = NOW()
+        WHERE id = $8
+        RETURNING id, professor_id, title, description, due_date, onedrive_link, scope, course_id, submission_type, created_at, updated_at;
       `;
       const { rows: updatedRows } = await client.query(updateQuery, [
         title.trim(),
@@ -259,6 +305,8 @@ export const AssignmentModel = {
         dueDate,
         onedriveLink.trim(),
         scope,
+        courseId || null,
+        submissionType || 'INDIVIDUAL',
         assignmentId,
       ]);
       const updatedAssignment = updatedRows[0];

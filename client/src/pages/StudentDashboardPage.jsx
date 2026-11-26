@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { submissionApi } from '../services/api';
+import { submissionApi, courseApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
   FileText,
@@ -14,11 +14,13 @@ import {
   Loader2,
   Award,
   AlertTriangle,
+  BookOpen,
 } from 'lucide-react';
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -27,8 +29,12 @@ export default function StudentDashboardPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await submissionApi.getStudentProgress();
-        setData(res);
+        const [progressRes, coursesRes] = await Promise.all([
+          submissionApi.getStudentProgress(),
+          courseApi.getMyCourses(),
+        ]);
+        setData(progressRes);
+        setEnrolledCourses(coursesRes.courses || []);
       } catch (err) {
         setError(err.message || 'Failed to load coursework progress.');
       } finally {
@@ -141,6 +147,62 @@ export default function StudentDashboardPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Enrolled Courses Section (Round 2) */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 flex items-center">
+              <BookOpen className="w-4 h-4 mr-2 text-brand-600" />
+              Your Enrolled Courses
+            </h3>
+            <p className="text-xs text-slate-500">Academic modules you are actively attending</p>
+          </div>
+          <Link to="/courses" className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center">
+            View All Courses
+            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+          </Link>
+        </div>
+
+        {enrolledCourses.length === 0 ? (
+          <div className="py-6 text-center text-slate-400 text-xs">
+            <p>You have not enrolled in any courses yet.</p>
+            <Link to="/courses" className="mt-2 inline-block font-semibold text-brand-600 hover:underline">
+              Enter an enrollment code to join a course &rarr;
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enrolledCourses.map((c) => (
+              <Link
+                key={c.id}
+                to={`/courses/${c.id}`}
+                className="group p-4 bg-slate-50 hover:bg-brand-50/50 border border-slate-200 hover:border-brand-200 rounded-xl transition-all space-y-2 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-brand-100 text-brand-800">
+                      {c.course_code}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Prof. {c.professor_name}
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-brand-600 transition-colors mt-2">
+                    {c.title}
+                  </h4>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>{c.assignment_count} Coursework</span>
+                  <span className="font-semibold text-brand-600 group-hover:translate-x-0.5 transition-transform">
+                    Open &rarr;
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Group Progress Section (If In Group) */}

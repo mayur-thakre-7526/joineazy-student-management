@@ -62,6 +62,18 @@ export const createAssignmentSchema = z
     scope: z.enum(['ALL', 'SPECIFIC_GROUPS'], {
       required_error: 'Assignment scope must be ALL or SPECIFIC_GROUPS',
     }),
+    course_id: z
+      .string()
+      .uuid('Invalid course ID format. Must be a valid UUID.')
+      .nullable()
+      .optional()
+      .default(null),
+    submission_type: z
+      .enum(['INDIVIDUAL', 'GROUP'], {
+        errorMap: () => ({ message: 'Submission type must be INDIVIDUAL or GROUP' }),
+      })
+      .optional()
+      .default('INDIVIDUAL'),
     group_ids: z
       .array(z.string().uuid('Each target group ID must be a valid UUID'))
       .optional()

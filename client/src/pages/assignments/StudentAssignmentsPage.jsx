@@ -5,11 +5,13 @@ import {
   FileText,
   Calendar,
   Users,
+  User,
   ArrowRight,
   Loader2,
   RefreshCw,
   AlertCircle,
   GraduationCap,
+  BookOpen,
 } from 'lucide-react';
 
 export default function StudentAssignmentsPage() {
@@ -105,6 +107,32 @@ export default function StudentAssignmentsPage() {
               >
                 <div className="space-y-2 flex-grow max-w-2xl">
                   <div className="flex flex-wrap items-center gap-2">
+                    {assignment.course_code && (
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                        {assignment.course_code}
+                      </span>
+                    )}
+
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${
+                        assignment.submission_type === 'GROUP'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}
+                    >
+                      {assignment.submission_type === 'GROUP' ? (
+                        <>
+                          <Users className="w-3 h-3 mr-1" />
+                          Group
+                        </>
+                      ) : (
+                        <>
+                          <User className="w-3 h-3 mr-1" />
+                          Individual
+                        </>
+                      )}
+                    </span>
+
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border ${
                         assignment.scope === 'ALL'
@@ -112,7 +140,7 @@ export default function StudentAssignmentsPage() {
                           : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                       }`}
                     >
-                      {assignment.scope === 'ALL' ? 'Course-wide (All Students)' : 'Assigned to Your Group'}
+                      {assignment.scope === 'ALL' ? 'Course-wide' : 'Assigned to Your Group'}
                     </span>
 
                     <span

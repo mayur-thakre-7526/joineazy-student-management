@@ -29,8 +29,16 @@ export const AssignmentController = {
         });
       }
 
-      const { title, description, due_date, onedrive_link, scope, group_ids } =
-        parseResult.data;
+      const {
+        title,
+        description,
+        due_date,
+        onedrive_link,
+        scope,
+        course_id,
+        submission_type,
+        group_ids,
+      } = parseResult.data;
       const professorId = req.user.id;
 
       const assignment = await AssignmentModel.createAssignment({
@@ -40,6 +48,8 @@ export const AssignmentController = {
         dueDate: due_date,
         onedriveLink: onedrive_link,
         scope,
+        courseId: course_id,
+        submissionType: submission_type,
         groupIds: group_ids,
       });
 
@@ -180,8 +190,16 @@ export const AssignmentController = {
         });
       }
 
-      const { title, description, due_date, onedrive_link, scope, group_ids } =
-        bodyParse.data;
+      const {
+        title,
+        description,
+        due_date,
+        onedrive_link,
+        scope,
+        course_id,
+        submission_type,
+        group_ids,
+      } = bodyParse.data;
 
       const updatedAssignment = await AssignmentModel.updateAssignment({
         assignmentId,
@@ -191,6 +209,8 @@ export const AssignmentController = {
         dueDate: due_date,
         onedriveLink: onedrive_link,
         scope,
+        courseId: course_id,
+        submissionType: submission_type,
         groupIds: group_ids,
       });
 

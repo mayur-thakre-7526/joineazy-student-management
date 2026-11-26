@@ -7,6 +7,7 @@ import groupRoutes from './groupRoutes.js';
 import invitationRoutes from './invitationRoutes.js';
 import assignmentRoutes from './assignmentRoutes.js';
 import studentRoutes from './studentRoutes.js';
+import courseRoutes from './courseRoutes.js';
 
 const router = Router();
 
@@ -19,6 +20,9 @@ router.use('/auth', authRoutes);
 
 // Admin Role verification & Admin operations
 router.use('/admin', adminRoutes);
+
+// Courses & Enrollment (Round 2)
+router.use('/courses', courseRoutes);
 
 // Student Groups & Invitations
 router.use('/groups', groupRoutes);
