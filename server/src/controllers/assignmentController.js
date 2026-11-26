@@ -229,6 +229,56 @@ export const AssignmentController = {
   },
 
   /**
+   * Delete an assignment
+   * DELETE /api/assignments/:id (ADMIN author only)
+   */
+  async deleteAssignment(req, res, next) {
+    try {
+      const idParse = uuidParamSchema.safeParse(req.params.id);
+      if (!idParse.success) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Invalid assignment ID format (must be a valid UUID)',
+          },
+        });
+      }
+
+      const assignmentId = idParse.data;
+      const professorId = req.user.id;
+
+      const result = await AssignmentModel.deleteAssignment({
+        assignmentId,
+        professorId,
+      });
+
+      logger.info(
+        `Assignment deleted: "${result.title}" (ID: ${assignmentId}) by professor ${req.user.email}`
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Assignment deleted successfully',
+        deleted_id: assignmentId,
+      });
+    } catch (error) {
+      if (error.statusCode === 404 || error.message === 'Assignment not found.') {
+        return res.status(404).json({
+          success: false,
+          error: { message: error.message },
+        });
+      }
+      if (error.statusCode === 403 || error.message.includes('permission')) {
+        return res.status(403).json({
+          success: false,
+          error: { message: error.message },
+        });
+      }
+      next(error);
+    }
+  },
+
+  /**
    * Helper endpoint: Get all groups for Admin assignment targeting
    * GET /api/admin/groups (ADMIN only)
    */

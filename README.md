@@ -1,6 +1,108 @@
-# Joineazy - Student, Group & Assignment Management System
+# Joineazy - Student, Course, Group & Assignment Management System
 
-A production-quality, role-based academic platform designed for Students and Professors (Admins). Enables students to form groups, receive assignments, access external OneDrive submission portals, confirm submissions through a two-step verification workflow, and track collaborative progress. Enables professors (admins) to create targeted assignments, oversee group/student progress, and inspect submission analytics.
+A production-quality, role-based academic management platform designed for Students and Professors (Admins). Enables students to enroll in academic courses, form collaborative groups, receive individual or team assignments, access external OneDrive submission portals, confirm submissions through a two-step verification workflow, and track team progress with reflected member acknowledgments. Enables professors to create and manage academic courses, publish targeted deliverables, inspect real-time submission rosters with status filters, and monitor analytical completion metrics.
+
+---
+
+## 🚀 Live Application & Evaluation Summary
+
+| Resource | URL / Details |
+|---|---|
+| **Live Production Web App** | [https://joineazy-app.onrender.com](https://joineazy-app.onrender.com) |
+| **GitHub Repository** | [https://github.com/mayur-thakre-7526/joineazy-student-management](https://github.com/mayur-thakre-7526/joineazy-student-management) |
+| **Active Round 2 Branch** | `round2` |
+| **Backend Test Coverage** | **202 / 202 Automated Assertions Passing (100%)** across 9 test suites |
+| **Live HTTP QA Verification**| **32 / 32 Live Integration Scenarios Passing (100%)** |
+| **Visual QA Verification** | **17 Authentic Browser Screenshots** across 5 responsive breakpoints (`1440px`, `1024px`, `768px`, `375px`, `320px`) |
+
+### Evaluator Quick-Access Credentials
+| Role | Email Address | Access Level | Description |
+|---|---|---|---|
+| **Professor / Admin** | `admin@joineazy.edu` | `ADMIN` | Course creation, assignment authoring/editing/deletion, and full coursework analytics |
+| **Student (Leader)** | `student_leader@univ.edu` | `STUDENT` | Group leader with team invitation tools and leader-only assignment acknowledgment |
+| **Student (Member)** | `student_member@univ.edu` | `STUDENT` | Team member with reflected submission confirmation and course catalog enrollment |
+
+---
+
+## 📸 Executive Visual Previews
+
+Here is an immediate visual walkthrough of the Joineazy system running in real browser viewports:
+
+| Desktop (1440px) — Modern SaaS Homepage | Desktop (1440px) — Student Academic Dashboard |
+|:---:|:---:|
+| ![Homepage Desktop](docs/screenshots/01_homepage_desktop_1440px.png) | ![Student Dashboard Desktop](docs/screenshots/06_student_dashboard_desktop_1440px.png) |
+| *Hero section with role-based navigation and registration CTA* | *5 coursework metric cards, enrolled courses, and team progress* |
+
+| Desktop (1440px) — Professor Oversight Console | Desktop (1440px) — Group Leader Acknowledgment Modal |
+|:---:|:---:|
+| ![Professor Dashboard Desktop](docs/screenshots/09_professor_dashboard_desktop_1440px.png) | ![Assignment Details Modal](docs/screenshots/15_assignment_details_group_leader_1440px.png) |
+| *6 overview metrics, course breakdown, and student status roster* | *Leader-only team acknowledgment with live roster preview* |
+
+> *Full gallery containing all 17 responsive screenshot captures across Tablet (768px), Mobile (375px), and Ultra-Small (320px) viewports is available in the [Visual Verification Gallery](#-real-browser-visual-verification--screenshot-gallery) below.*
+
+---
+
+## ⚖️ Round 1 vs. Round 2 Feature Matrix
+
+| Functional Area | Round 1 (Initial Release) | Round 2 (Current Production Ready) |
+|---|---|---|
+| **Academic Courses** | None (flat, unorganized assignments) | **Full Course Management**: Professors author courses with unique codes (`LOWER(code)` index); students self-enroll via enrollment codes. |
+| **Course Assignment Scope** | Global or group-targeted only | **Course-Scoped Deliverables**: Assignments bind to specific courses; students must be enrolled to access deliverables. Full backwards compatibility for legacy assignments. |
+| **Submission Types** | Individual submissions only | **Individual & Group Types**: Explicit `INDIVIDUAL` or `GROUP` submission models with dedicated workflows. |
+| **Team Submissions** | Per-student self-declaration only | **Leader-Only Acknowledgment**: Only designated group leaders (`groups.created_by`) can acknowledge team deliverables; non-leaders blocked with `HTTP 403`. |
+| **Member Status Reflection** | None (each member had to confirm) | **Instant Member Reflection**: Single leader acknowledgment instantly marks all active group members as `Confirmed` (or `Confirmed Late`). |
+| **Forensic Audit Snapshots** | No historical membership capture | **Relational Member Snapshots**: `group_submission_member_snapshots` records an immutable audit snapshot of eligible members at submission time. |
+| **Assignment Lifecycle (CRUD)**| Create, Read, Update only | **Complete CRUD with Safe Delete**: Professors can Delete assignments; requires authoring ownership (`403` for other professors) and cascades atomically. |
+| **Submission Status Filtering** | Basic listing without filters | **Multi-Criteria Filter Bar**: Real-time status filtering (`All`, `Confirmed`, `Pending`, `Late`) and live multi-attribute search across students and groups. |
+| **UI / UX Architecture** | Developer/testing-oriented cards | **Modern Academic SaaS Design**: Light navy/slate theme, interactive password toggles, 5-stat student dashboard, 6-stat faculty console, mobile touch targets. |
+| **Automated Test Coverage** | 134 automated assertions | **202 Automated Assertions** across 9 test suites + 32 live HTTP QA scenarios with 100% pass rate. |
+
+---
+
+## ⚡ Quick Start: Running Locally
+
+### Prerequisites
+- Node.js 18+ (ES Modules)
+- Docker Desktop (for local PostgreSQL 16) or local PostgreSQL instance
+
+### 1. Clone & Configure Environment
+```bash
+git clone https://github.com/mayur-thakre-7526/joineazy-student-management.git
+cd joineazy-student-management
+git checkout round2
+```
+
+### 2. Start PostgreSQL via Docker Compose
+```bash
+docker-compose up -d postgres
+```
+
+### 3. Install Dependencies & Run Database Migrations
+```bash
+# Install backend dependencies
+npm --prefix server install
+
+# Install frontend dependencies
+npm --prefix client install
+
+# Run database migrations (001, 002, 003)
+npm --prefix server run migrate
+
+# Seed initial administrator account
+npm --prefix server run seed:admin
+```
+
+### 4. Launch Application in Development Mode
+```bash
+# Terminal 1: Backend Express API (Runs on port 5000)
+npm --prefix server run dev
+
+# Terminal 2: Frontend Vite React App (Runs on port 5173)
+npm --prefix client run dev
+```
+Open `http://localhost:5173` in your browser. All API requests proxy seamlessly to `http://localhost:5000/api`.
+
+---
 
 ---
 
@@ -549,7 +651,8 @@ Once the service is active on Render:
 | `POST` | `/api/assignments` | Admin | Creates an assignment (`course_id`, `submission_type`, `scope`, OneDrive link). |
 | `GET` | `/api/assignments` | Authenticated | Lists all assignments for Admin, or course/group visible assignments for Student. |
 | `GET` | `/api/assignments/:id` | Authenticated | Fetches details for Admin or eligible enrolled Student (includes submission status). |
-| `PUT` | `/api/assignments/:id` | Admin | Atomically updates assignment details, deadlines, course, submission type, and target groups. |
+| `PUT` | `/api/assignments/:id` | Admin (Author) | Atomically updates assignment details, deadlines, course, submission type, and target groups. |
+| `DELETE` | `/api/assignments/:id` | Admin (Author) | Atomically deletes assignment and cascades cleanup across groups, submissions, and snapshots. |
 
 ### Submissions & Analytics (Phase 5 & Round 2)
 | Method | Endpoint | Access | Description |
@@ -566,7 +669,7 @@ Once the service is active on Render:
 
 ## 🧪 Automated Testing & Verification
 
-The project includes 194 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
+The project includes **202 automated backend test scenarios** across 9 test suites covering unit, integration, RBAC, cascade cleanup, and end-to-end workflows:
 
 ```bash
 # Run Phase 2 Regression Tests (15 test scenarios)
@@ -593,6 +696,9 @@ npm --prefix server run test:round2:phase1
 # Run Round 2 Phase 2 Integration Test Suite (30 test scenarios)
 npm --prefix server run test:round2:phase2
 
+# Run Assignment CRUD & Safe Delete Test Suite (8 test scenarios)
+npm --prefix server run test:crud:delete
+
 # Compile Frontend Production Build
 npm --prefix client run build
 ```
@@ -608,7 +714,8 @@ npm --prefix client run build
 | `test:dashboard` | 10 | Zero-denominator handling, null tracking states, mixed scopes, empty arrays | **10/10 PASS** |
 | `test:round2:phase1` | 20 | Course Creation, Unique Enrollment, Assignment Course Scope, Submission Types, RBAC | **20/20 PASS** |
 | `test:round2:phase2` | 30 | Leader-Only Acknowledgment, Reflected Member Status, Snapshots, Non-Leader Rejection, Analytics | **30/30 PASS** |
-| **Total** | **194** | **Complete Full-Stack Application Verification** | **194/194 PASS** |
+| `test:crud:delete` | 8 | Assignment CRUD Deletion, Author Isolation (403), Non-author 403, Student 403, Cascade Purge | **8/8 PASS** |
+| **Total** | **202** | **Complete Full-Stack Application Verification** | **202/202 PASS** |
 
 ---
 

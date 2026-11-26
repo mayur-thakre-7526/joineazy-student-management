@@ -176,6 +176,11 @@ export const assignmentApi = {
     body: JSON.stringify(payload),
   }),
 
+  // Delete assignment (ADMIN only)
+  deleteAssignment: (id) => request(`/assignments/${id}`, {
+    method: 'DELETE',
+  }),
+
   // Get targeting groups for selector (ADMIN only)
   getAdminGroups: () => request('/admin/groups', {
     method: 'GET',

@@ -373,6 +373,48 @@ export const AssignmentModel = {
   },
 
   /**
+   * Delete an assignment (ADMIN only, authoring professor only)
+   * Cascades through assignment_groups, submission_confirmations,
+   * group_submission_acknowledgments, and group_submission_member_snapshots in an atomic transaction.
+   */
+  async deleteAssignment({ assignmentId, professorId }) {
+    const existing = await this.findById(assignmentId);
+    if (!existing) {
+      const err = new Error('Assignment not found.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (existing.professor_id !== professorId) {
+      const err = new Error('You do not have permission to delete this assignment. Only the authoring professor may delete it.');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM assignment_groups WHERE assignment_id = $1;', [assignmentId]);
+      await client.query('DELETE FROM group_submission_member_snapshots WHERE assignment_id = $1;', [assignmentId]);
+      await client.query('DELETE FROM group_submission_acknowledgments WHERE assignment_id = $1;', [assignmentId]);
+      await client.query('DELETE FROM submission_confirmations WHERE assignment_id = $1;', [assignmentId]);
+      await client.query('DELETE FROM assignments WHERE id = $1;', [assignmentId]);
+      await client.query('COMMIT');
+
+      return {
+        deleted: true,
+        id: assignmentId,
+        title: existing.title,
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+
+  /**
    * Helper: Retrieve minimal groups listing for Admin targeting selector
    */
   async getAllGroupsForAdmin() {

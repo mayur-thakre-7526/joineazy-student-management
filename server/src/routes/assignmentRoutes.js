@@ -20,6 +20,9 @@ router.post('/', requireRole('ADMIN'), AssignmentController.createAssignment);
 // Edit assignment (ADMIN only)
 router.put('/:id', requireRole('ADMIN'), AssignmentController.updateAssignment);
 
+// Delete assignment (ADMIN only, authoring professor only)
+router.delete('/:id', requireRole('ADMIN'), AssignmentController.deleteAssignment);
+
 // Confirm individual assignment submission (STUDENT only)
 router.post('/:id/confirm', requireRole('STUDENT'), SubmissionController.confirmSubmission);
 

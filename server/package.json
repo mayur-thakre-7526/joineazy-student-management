@@ -16,7 +16,8 @@
     "test:e2e": "node src/scripts/verifyE2EFlow.js",
     "test:dashboard": "node src/scripts/verifyDashboardCases.js",
     "test:round2:phase1": "node src/scripts/verifyRound2Phase1.js",
-    "test:round2:phase2": "node src/scripts/verifyRound2Phase2.js"
+    "test:round2:phase2": "node src/scripts/verifyRound2Phase2.js",
+    "test:crud:delete": "node src/scripts/verifyCrudDelete.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -12,6 +12,7 @@ import {
   AlertCircle,
   ArrowRight,
   BookOpen,
+  Trash2,
 } from 'lucide-react';
 
 export default function EditAssignmentPage() {
@@ -35,6 +36,20 @@ export default function EditAssignmentPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await assignmentApi.deleteAssignment(id);
+      navigate('/assignments');
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to delete assignment');
+      setShowDeleteModal(false);
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -400,32 +415,91 @@ export default function EditAssignmentPage() {
           </div>
         )}
 
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
-          <Link
-            to={`/assignments/${id}`}
-            className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors"
-          >
-            Cancel
-          </Link>
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
           <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 transition-all shadow-sm"
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="inline-flex items-center px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold transition-colors"
           >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving Changes...
-              </>
-            ) : (
-              <>
-                Save Assignment Changes
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </>
-            )}
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+            Delete Assignment
           </button>
+          <div className="flex items-center space-x-3">
+            <Link
+              to={`/assignments/${id}`}
+              className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex items-center px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 transition-all shadow-sm"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving Changes...
+                </>
+              ) : (
+                <>
+                  Save Assignment Changes
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </form>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Assignment</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-slate-900 font-semibold">{title}</strong>? All associated student submission records and group acknowledgments will be permanently removed.
+            </p>
+            <div className="pt-2 flex items-center justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-xl transition-colors shadow-sm"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Confirm Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
