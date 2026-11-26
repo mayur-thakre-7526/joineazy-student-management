@@ -14,6 +14,7 @@ import CreateAssignmentPage from './pages/assignments/CreateAssignmentPage';
 import EditAssignmentPage from './pages/assignments/EditAssignmentPage';
 import AssignmentDetailsPage from './pages/assignments/AssignmentDetailsPage';
 import DashboardIndexPage from './pages/DashboardIndexPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import CoursesIndexPage from './pages/courses/CoursesIndexPage';
 import CreateCoursePage from './pages/courses/CreateCoursePage';
 import StudentCourseDetailsPage from './pages/courses/StudentCourseDetailsPage';
@@ -38,6 +39,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <DashboardIndexPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <AdminDashboardPage />
                     </ProtectedRoute>
                   }
                 />
