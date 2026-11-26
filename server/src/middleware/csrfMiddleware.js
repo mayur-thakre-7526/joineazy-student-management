@@ -34,6 +34,15 @@ export function getCsrfTokenHandler(req, res) {
 }
 
 /**
+ * Helper function to verify CSRF token
+ */
+export function verifyCsrfToken(req) {
+  const clientCsrfToken = req.headers['x-csrf-token'] || req.headers['x-xsrf-token'];
+  const cookieCsrfToken = req.cookies && req.cookies['XSRF-TOKEN'];
+  return Boolean(clientCsrfToken && cookieCsrfToken && clientCsrfToken === cookieCsrfToken);
+}
+
+/**
  * CSRF Protection Middleware
  * Verifies Origin header and matches X-CSRF-Token header against cookie
  */

@@ -189,10 +189,10 @@ erDiagram
 
     courses {
         uuid id PK
-        varchar code UK "idx_courses_code_lower"
+        varchar course_code UK "idx_courses_course_code_lower"
         varchar title
         text description
-        uuid created_by FK
+        uuid professor_id FK
         timestamptz created_at
         timestamptz updated_at
     }

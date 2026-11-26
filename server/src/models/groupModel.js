@@ -98,6 +98,13 @@ export const GroupModel = {
   /**
    * Create group and assign creator in an atomic transaction
    */
+  async createGroup({ name, creatorId }) {
+    return this.createGroupWithCreator({ name, creatorId });
+  },
+
+  /**
+   * Create group and assign creator in an atomic transaction
+   */
   async createGroupWithCreator({ name, creatorId }) {
     const client = await pool.connect();
     try {

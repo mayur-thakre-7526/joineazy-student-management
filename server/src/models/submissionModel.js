@@ -968,6 +968,7 @@ export const SubmissionModel = {
         SELECT g.id as group_id, g.name as group_name,
                g.created_by as leader_id, leader.full_name as leader_name,
                COUNT(DISTINCT gm.student_id)::int as eligible_count,
+               COUNT(DISTINCT sc.student_id)::int as individual_confirmed_count,
                gsa.acknowledged_at,
                gsa.acknowledged_by,
                ack_user.full_name as acknowledged_by_name,
@@ -979,6 +980,7 @@ export const SubmissionModel = {
           AND ($3::uuid IS NULL OR EXISTS (
             SELECT 1 FROM course_enrollments ce WHERE ce.course_id = $3 AND ce.student_id = gm.student_id
           ))
+        LEFT JOIN submission_confirmations sc ON gm.student_id = sc.student_id AND sc.assignment_id = $1
         LEFT JOIN group_submission_acknowledgments gsa ON g.id = gsa.group_id AND gsa.assignment_id = $1
         LEFT JOIN users ack_user ON gsa.acknowledged_by = ack_user.id
         GROUP BY g.id, g.name, g.created_by, leader.full_name, gsa.acknowledged_at, gsa.acknowledged_by, ack_user.full_name
@@ -991,6 +993,7 @@ export const SubmissionModel = {
         SELECT g.id as group_id, g.name as group_name,
                g.created_by as leader_id, leader.full_name as leader_name,
                COUNT(DISTINCT gm.student_id)::int as eligible_count,
+               COUNT(DISTINCT sc.student_id)::int as individual_confirmed_count,
                gsa.acknowledged_at,
                gsa.acknowledged_by,
                ack_user.full_name as acknowledged_by_name,
@@ -1003,6 +1006,7 @@ export const SubmissionModel = {
           AND ($3::uuid IS NULL OR EXISTS (
             SELECT 1 FROM course_enrollments ce WHERE ce.course_id = $3 AND ce.student_id = gm.student_id
           ))
+        LEFT JOIN submission_confirmations sc ON gm.student_id = sc.student_id AND sc.assignment_id = ag.assignment_id
         LEFT JOIN group_submission_acknowledgments gsa ON g.id = gsa.group_id AND gsa.assignment_id = ag.assignment_id
         LEFT JOIN users ack_user ON gsa.acknowledged_by = ack_user.id
         WHERE ag.assignment_id = $1
@@ -1031,8 +1035,15 @@ export const SubmissionModel = {
         }
       } else {
         // Individual confirmations for this group's members
-        // Calculate based on individual confirmations
-        confirmed = 0; // Will be aggregated below
+        confirmed = g.individual_confirmed_count;
+        progressPercent = eligible > 0 ? Math.round((confirmed / eligible) * 100) : 0;
+        if (progressPercent === 100) {
+          status = 'COMPLETED';
+        } else if (progressPercent > 0) {
+          status = 'IN_PROGRESS';
+        } else {
+          status = isPastDue ? 'OVERDUE' : 'NOT_STARTED';
+        }
       }
 
       return {
@@ -1045,7 +1056,7 @@ export const SubmissionModel = {
         pending_count: Math.max(0, eligible - confirmed),
         progress_percentage: progressPercent,
         status,
-        acknowledged: g.is_group_acknowledged === true,
+        acknowledged: isGroup ? (g.is_group_acknowledged === true) : (progressPercent === 100),
         acknowledged_at: g.acknowledged_at || null,
         acknowledged_by: g.acknowledged_by || null,
         acknowledged_by_name: g.acknowledged_by_name || null,
