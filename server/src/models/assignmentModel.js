@@ -19,14 +19,20 @@ export const AssignmentModel = {
     try {
       await client.query('BEGIN');
 
-      // Verify course exists if courseId is provided
+      // Verify course exists and professor teaches it if courseId is provided
       if (courseId) {
-        const checkCourseQuery = `SELECT id FROM courses WHERE id = $1;`;
+        const checkCourseQuery = `SELECT id, professor_id FROM courses WHERE id = $1;`;
         const { rows: courseRows } = await client.query(checkCourseQuery, [courseId]);
         if (courseRows.length === 0) {
           await client.query('ROLLBACK');
           const err = new Error('Specified course does not exist.');
           err.statusCode = 400;
+          throw err;
+        }
+        if (courseRows[0].professor_id !== professorId) {
+          await client.query('ROLLBACK');
+          const err = new Error('You can only associate assignments with courses you teach.');
+          err.statusCode = 403;
           throw err;
         }
       }
@@ -131,11 +137,31 @@ export const AssignmentModel = {
              a.onedrive_link, a.scope, a.course_id, a.submission_type,
              c.title as course_title, c.course_code,
              a.created_at, a.updated_at,
-             u.full_name as professor_name, u.email as professor_email
+             u.full_name as professor_name, u.email as professor_email,
+             CASE
+               WHEN a.submission_type = 'GROUP' THEN (gsa.acknowledged_at IS NOT NULL)
+               ELSE (sc.confirmed_at IS NOT NULL)
+             END as is_confirmed,
+             CASE
+               WHEN a.submission_type = 'GROUP' THEN gsa.acknowledged_at
+               ELSE sc.confirmed_at
+             END as confirmed_at,
+             CASE
+               WHEN a.submission_type = 'GROUP' THEN (gsa.acknowledged_at > a.due_date)
+               ELSE (sc.confirmed_at > a.due_date)
+             END as is_late,
+             gsa.acknowledged_by as group_acknowledged_by,
+             leader.full_name as group_acknowledged_by_name,
+             (g.created_by = $1) as is_group_leader,
+             g.name as group_name
       FROM assignments a
       JOIN users u ON a.professor_id = u.id
       LEFT JOIN courses c ON a.course_id = c.id
       LEFT JOIN assignment_groups ag ON a.id = ag.assignment_id
+      LEFT JOIN submission_confirmations sc ON a.id = sc.assignment_id AND sc.student_id = $1
+      LEFT JOIN group_submission_acknowledgments gsa ON a.id = gsa.assignment_id AND gsa.group_id = $2
+      LEFT JOIN users leader ON gsa.acknowledged_by = leader.id
+      LEFT JOIN groups g ON g.id = $2
       WHERE
         -- If course_id is set, student must be enrolled in the course. Legacy NULL courses are open to all.
         (a.course_id IS NULL OR EXISTS (
@@ -262,14 +288,20 @@ export const AssignmentModel = {
         throw err;
       }
 
-      // Verify course exists if courseId is provided
+      // Verify course exists and professor teaches it if courseId is provided
       if (courseId) {
-        const checkCourseQuery = `SELECT id FROM courses WHERE id = $1;`;
+        const checkCourseQuery = `SELECT id, professor_id FROM courses WHERE id = $1;`;
         const { rows: courseRows } = await client.query(checkCourseQuery, [courseId]);
         if (courseRows.length === 0) {
           await client.query('ROLLBACK');
           const err = new Error('Specified course does not exist.');
           err.statusCode = 400;
+          throw err;
+        }
+        if (courseRows[0].professor_id !== editorId) {
+          await client.query('ROLLBACK');
+          const err = new Error('You can only associate assignments with courses you teach.');
+          err.statusCode = 403;
           throw err;
         }
       }

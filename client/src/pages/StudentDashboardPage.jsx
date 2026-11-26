@@ -314,7 +314,16 @@ export default function StudentDashboardPage() {
               return (
                 <div key={a.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                          a.submission_type === 'GROUP'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}
+                      >
+                        {a.submission_type === 'GROUP' ? 'Group Task' : 'Individual'}
+                      </span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                           a.scope === 'ALL'

@@ -12,6 +12,8 @@ import {
   AlertCircle,
   GraduationCap,
   BookOpen,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 
 export default function StudentAssignmentsPage() {
@@ -153,6 +155,34 @@ export default function StudentAssignmentsPage() {
                       <Calendar className="w-3 h-3 mr-1" />
                       Due {dueDate.toLocaleDateString()} at {dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
+
+                    {assignment.is_confirmed ? (
+                      <span
+                        className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                          assignment.is_late
+                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        {assignment.is_late ? 'Submitted Late' : 'Submitted'}
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                          isPastDue
+                            ? 'bg-red-100 text-red-800 border-red-300'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <Clock className="w-3 h-3 mr-1" />
+                        {isPastDue
+                          ? 'Overdue'
+                          : assignment.submission_type === 'GROUP'
+                          ? (assignment.is_group_leader ? 'Leader Action Needed' : 'Awaiting Leader Submission')
+                          : 'Pending Submission'}
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="text-lg font-bold text-slate-900 hover:text-brand-600 transition-colors">

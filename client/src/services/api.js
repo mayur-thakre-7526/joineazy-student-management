@@ -182,11 +182,21 @@ export const assignmentApi = {
   }),
 };
 
-// Submission Confirmation & Student Progress API (Phase 5)
+// Submission Confirmation & Student Progress API (Phase 5 & Round 2)
 export const submissionApi = {
-  // Confirm submission declaration (STUDENT only)
+  // Confirm individual submission declaration (STUDENT only)
   confirm: (assignmentId) => request(`/assignments/${assignmentId}/confirm`, {
     method: 'POST',
+  }),
+
+  // Acknowledge group submission declaration (STUDENT group leader only)
+  acknowledgeGroup: (assignmentId) => request(`/assignments/${assignmentId}/group-acknowledge`, {
+    method: 'POST',
+  }),
+
+  // Get group submission status for an assignment (Role-aware)
+  getGroupStatus: (assignmentId) => request(`/assignments/${assignmentId}/group-status`, {
+    method: 'GET',
   }),
 
   // Get student submission status for an assignment (STUDENT only)

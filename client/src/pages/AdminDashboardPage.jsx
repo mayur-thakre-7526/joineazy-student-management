@@ -334,6 +334,8 @@ export default function AdminDashboardPage() {
               <thead className="bg-slate-50 text-slate-700 uppercase font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Assignment</th>
+                  <th className="py-3 px-4">Course</th>
+                  <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Scope</th>
                   <th className="py-3 px-4">Deadline</th>
                   <th className="py-3 px-4 text-center">Eligible</th>
@@ -356,6 +358,26 @@ export default function AdminDashboardPage() {
                     >
                       <td className="py-3.5 px-4 font-bold text-slate-900">{a.title}</td>
                       <td className="py-3.5 px-4">
+                        {a.course_code ? (
+                          <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                            {a.course_code}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">General</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                            a.submission_type === 'GROUP'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }`}
+                        >
+                          {a.submission_type === 'GROUP' ? 'Group' : 'Individual'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                             a.scope === 'ALL'
@@ -363,7 +385,7 @@ export default function AdminDashboardPage() {
                               : 'bg-purple-50 text-purple-700 border-purple-200'
                           }`}
                         >
-                          {a.scope === 'ALL' ? 'Open to All' : 'Targeted Groups'}
+                          {a.scope === 'ALL' ? 'Open to All' : 'Targeted'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
@@ -576,13 +598,13 @@ export default function AdminDashboardPage() {
                               {s.status === 'CONFIRMED' && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
                                   <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                                  Confirmed On-Time
+                                  {s.acknowledged_by_leader ? 'Confirmed by Leader' : 'Confirmed On-Time'}
                                 </span>
                               )}
                               {s.status === 'CONFIRMED_LATE' && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
                                   <Clock className="w-3 h-3 mr-1 text-amber-600" />
-                                  Confirmed Late
+                                  {s.acknowledged_by_leader ? 'Confirmed by Leader (Late)' : 'Confirmed Late'}
                                 </span>
                               )}
                               {s.status === 'OVERDUE' && (

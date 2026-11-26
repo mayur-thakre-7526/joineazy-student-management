@@ -31,8 +31,9 @@ CREATE INDEX IF NOT EXISTS idx_course_enrollments_student_id ON course_enrollmen
 
 -- 3. EXTEND ASSIGNMENTS TABLE
 -- Add course_id column (nullable foreign key to preserve legacy Round 1 assignments)
+-- ON DELETE RESTRICT prevents accidental deletion of a course when assignments exist, preventing exposure
 ALTER TABLE assignments 
-ADD COLUMN IF NOT EXISTS course_id UUID NULL REFERENCES courses(id) ON DELETE SET NULL;
+ADD COLUMN IF NOT EXISTS course_id UUID NULL REFERENCES courses(id) ON DELETE RESTRICT;
 
 CREATE INDEX IF NOT EXISTS idx_assignments_course_id ON assignments (course_id);
 

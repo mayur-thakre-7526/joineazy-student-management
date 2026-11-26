@@ -170,6 +170,12 @@ erDiagram
 
     assignments ||--o{ assignment_groups : "targets"
     assignments ||--o{ submission_confirmations : "receives"
+    assignments ||--o{ group_submission_acknowledgments : "acknowledged via"
+    groups ||--o{ group_submission_acknowledgments : "submitted by"
+    users ||--o{ group_submission_acknowledgments : "leader confirms"
+
+    group_submission_acknowledgments ||--o{ group_submission_member_snapshots : "snapshots"
+    users ||--o{ group_submission_member_snapshots : "included member"
 
     users {
         uuid id PK
@@ -249,6 +255,25 @@ erDiagram
         uuid student_id FK
         timestamptz confirmed_at
     }
+
+    group_submission_acknowledgments {
+        uuid id PK
+        uuid assignment_id FK
+        uuid group_id FK "UK (uq_group_assignment_acknowledgment)"
+        uuid acknowledged_by FK
+        timestamptz acknowledged_at
+        timestamptz created_at
+    }
+
+    group_submission_member_snapshots {
+        uuid id PK
+        uuid acknowledgment_id FK
+        uuid assignment_id FK
+        uuid group_id FK
+        uuid student_id FK "UK (uq_acknowledgment_member_snapshot)"
+        boolean is_leader
+        timestamptz snapshotted_at
+    }
 ```
 
 ### Database Integrity Rules
@@ -260,6 +285,8 @@ erDiagram
 6. **Case-Insensitive Course Code**: `courses` enforces unique `code` via unique index `idx_courses_code_lower UNIQUE (LOWER(code))`.
 7. **Backward-Compatible Assignment Scoping**: `assignments.course_id` is a nullable foreign key. Existing assignments without course associations remain valid (`course_id IS NULL`), maintaining complete backward compatibility.
 8. **Submission Types**: `assignments.submission_type` defaults to `'INDIVIDUAL'`, with explicit support for `'GROUP'` submissions.
+9. **Leader-Only Group Acknowledgment Uniqueness**: `group_submission_acknowledgments` enforces `CONSTRAINT uq_group_assignment_acknowledgment UNIQUE (assignment_id, group_id)`. Prevents duplicate or concurrent group acknowledgments.
+10. **Historical Membership Snapshot Integrity**: `group_submission_member_snapshots` captures an immutable record of eligible group members at acknowledgment time (`CONSTRAINT uq_acknowledgment_member_snapshot UNIQUE (acknowledgment_id, student_id)`).
 
 ---
 
@@ -375,6 +402,30 @@ erDiagram
    - Login and Register workflows redirect both Students and Professors to `/dashboard`, which cleanly renders the role-appropriate experience (`StudentDashboardPage` or `AdminDashboardPage`).
    - Student Dashboard surfaces quick-access enrolled course cards with assignment counts.
    - Professor Dashboard surfaces taught course cards with active student enrollment numbers and deliverable counts.
+
+---
+
+## 👥 Round 2 - Task 2: Leader-Only Group Assignment Acknowledgment
+
+### Architecture & Business Rules
+1. **Leader-Only Submission Authorization**:
+   - For `GROUP` assignments, **only the designated group leader** (`groups.created_by = requester.id`) possesses authorization to acknowledge submission via `POST /api/assignments/:id/group-acknowledge`.
+   - Ordinary group members cannot independently confirm the group assignment; attempts to do so return `403 Forbidden`.
+   - The legacy per-student confirmation endpoint (`POST /api/assignments/:id/confirm`) strictly rejects `GROUP` assignments (`400 Bad Request`), preventing member bypass.
+2. **Reflected Acknowledgment Across Eligible Members**:
+   - A single authorized leader acknowledgment automatically reflects complete submission status for all current eligible group members.
+   - For student dashboards and progress tracking, eligible members see `Confirmed` (or `Confirmed Late` if `acknowledged_at > due_date`) along with the leader's name and recorded timestamp.
+3. **Course Enrollment & Scope Validation**:
+   - If an assignment has a `course_id`, the group leader and group members must be actively enrolled in `course_enrollments` to be eligible for acknowledgment and reflection.
+   - If an assignment has `scope = 'SPECIFIC_GROUPS'`, the leader's group must be targeted in `assignment_groups`.
+4. **Historical Group Membership Snapshot Policy**:
+   - When a group leader acknowledges a submission, `group_submission_member_snapshots` records an immutable audit snapshot of all eligible students active in the group at that moment.
+   - If a student subsequently leaves or joins the group, historical submissions maintain complete forensic integrity.
+5. **Professor Analytics & Distinguishing Metrics**:
+   - Professor analytics distinctly separate group-level metrics from student-level reflected metrics:
+     - Group-level: `eligible_groups`, `confirmed_groups`, and `group_completion_percentage`.
+     - Student-level: `eligible_students`, `confirmed_students` (reflected from group submissions), and `completion_percentage`.
+   - Prevents double-counting and provides safe zero-denominator divisions across all cohorts.
 
 ---
 
@@ -500,20 +551,22 @@ Once the service is active on Render:
 | `GET` | `/api/assignments/:id` | Authenticated | Fetches details for Admin or eligible enrolled Student (includes submission status). |
 | `PUT` | `/api/assignments/:id` | Admin | Atomically updates assignment details, deadlines, course, submission type, and target groups. |
 
-### Submissions & Analytics (Phase 5)
+### Submissions & Analytics (Phase 5 & Round 2)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/api/assignments/:id/confirm` | Student | Records two-step submission confirmation declaration (201 on success, 409 if already confirmed). |
-| `GET` | `/api/assignments/:id/submission` | Student | Retrieves student's personal submission status (`confirmed`, `confirmed_at`, `is_late`). |
+| `POST` | `/api/assignments/:id/confirm` | Student | Records two-step individual submission confirmation (rejects GROUP assignments with 400). |
+| `POST` | `/api/assignments/:id/group-acknowledge` | Group Leader | Records leader-only group submission declaration with member snapshots (201 on success, 403 for non-leader, 409 if already acknowledged). |
+| `GET` | `/api/assignments/:id/group-status` | Authenticated | Retrieves group submission status, leader authorization flag, and member roster. |
+| `GET` | `/api/assignments/:id/submission` | Student | Retrieves student's personal submission status (`confirmed`, `confirmed_at`, `is_late`, reflected for group). |
 | `GET` | `/api/student/progress` | Student | Retrieves student's coursework summary and group-level progress across applicable assignments. |
-| `GET` | `/api/admin/analytics` | Admin | Retrieves coursewide analytics overview and per-assignment completion metrics. |
+| `GET` | `/api/admin/analytics` | Admin | Retrieves coursewide analytics overview, distinguishing individual vs group assignment completion. |
 | `GET` | `/api/admin/assignments/:id/submissions` | Admin | Retrieves group-wise and student-wise submission tracking breakdown for an assignment. |
 
 ---
 
 ## 🧪 Automated Testing & Verification
 
-The project includes 148 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
+The project includes 178 automated backend test scenarios across unit, integration, RBAC, and end-to-end workflows:
 
 ```bash
 # Run Phase 2 Regression Tests (15 test scenarios)
@@ -534,6 +587,9 @@ npm --prefix server run test:e2e
 # Run Round 2 Phase 1 Integration Test Suite (14 test scenarios)
 npm --prefix server run test:round2:phase1
 
+# Run Round 2 Phase 2 Integration Test Suite (30 test scenarios)
+npm --prefix server run test:round2:phase2
+
 # Compile Frontend Production Build
 npm --prefix client run build
 ```
@@ -547,7 +603,8 @@ npm --prefix client run build
 | `test:phase5` | 40 | Two-Step Confirmation, Late Flagging, Idempotency, Group Progress Math, Professor Analytics | **40/40 PASS** |
 | `test:e2e` | 20 | Complete 20-step lifecycle across Student 1, Student 2, and Professor roles | **20/20 PASS** |
 | `test:round2:phase1` | 14 | Course Creation, Unique Enrolled, Assignment Course Scope, Submission Types, RBAC | **14/14 PASS** *(Local DB offline: mockable via live Postgres)* |
-| **Total** | **148** | **Complete Full-Stack Application Verification** | **148/148 PASS** |
+| `test:round2:phase2` | 30 | Leader-Only Acknowledgment, Reflected Member Status, Snapshots, Non-Leader Rejection, Analytics | **30/30 PASS** *(Local DB offline: mockable via live Postgres)* |
+| **Total** | **178** | **Complete Full-Stack Application Verification** | **178/178 PASS** |
 
 ---
 
@@ -560,3 +617,4 @@ npm --prefix client run build
 - [x] **Phase 5: Two-Step Submission Verification & Analytics** (Declarations, Late Flags, Progress Math, Course Analytics)
 - [x] **Phase 6A: QA, Security Hardening & Deployment Preparation** (Single-Origin Container, Neon SSL, Rate Limiting, Render Blueprint, 134 Tests)
 - [x] **Round 2 - Phase 1: Course Management Foundation & Enrollment** (Courses, Enrollments, Submission Types, Dashboard Integration, 14 Scenarios)
+- [x] **Round 2 - Task 2: Leader-Only Group Assignment Acknowledgment** (Leader Authorization, Group Submissions, Member Snapshots, Reflected Status, Analytics, 30 Scenarios)
